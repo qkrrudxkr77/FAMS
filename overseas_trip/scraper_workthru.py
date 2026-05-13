@@ -102,7 +102,7 @@ def _set_date_range(frame) -> None:
     실제 필드명: searchStartDate / searchEndDate, 포맷: YYYY.MM.DD
     필드가 readonly이므로 JS로 직접 값 설정 후 change 이벤트 발생.
     """
-    lookback_days = int(os.getenv("WORKTHRU_LOOKBACK_DAYS", "60"))
+    lookback_days = int(os.getenv("WORKTHRU_LOOKBACK_DAYS", "7"))
     today = date.today()
     start = today - timedelta(days=lookback_days)
     logger.info("워크쓰루 조회 기간 설정: %s ~ %s (lookback=%d일)", start, today, lookback_days)
