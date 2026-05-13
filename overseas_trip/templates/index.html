@@ -401,7 +401,7 @@ async function addNewRow() {
     </td>
   `;
 
-  table.insertBefore(newRow, table.firstChild);
+  table.appendChild(newRow);
 
   // 이벤트 바인딩
   bindRowEvents(newRow);
