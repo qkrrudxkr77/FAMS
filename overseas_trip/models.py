@@ -50,6 +50,7 @@ class OverseasTripExpense(Base):
     booking_class = Column(String(100), nullable=True, comment="예약등급 (BTMS 고객요청여정 클래스, 이코노미/비즈니스 형태)")
     compliance = Column(String(200), nullable=True, comment="규정 (BTMS 출장규정 준수여부 열 값)")
     ticketing_completed = Column(String(20), nullable=True, comment="발권완료 여부 (하드코딩: 발권완료)")
+    air_status = Column(String(20), nullable=True, comment="BTMS 항공 상태 (예약안함/예약완료/발권요청/발권완료)")
 
     # 보고서 출장금액 - 보고서 정산기준 신청금액 행 추출
     accommodation = Column(DECIMAL(15, 2), nullable=True, comment="숙박비 (보고서 정산기준 신청금액)")

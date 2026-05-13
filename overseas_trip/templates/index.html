@@ -198,7 +198,7 @@
             <th colspan="4" class="group-trip group-trip-rest"></th>
             <th colspan="4" class="group-allowance">💼 직원 경비</th>
             <th colspan="9" class="group-expense">💰 발생 비용</th>
-            <th colspan="9" class="group-meta">🏷 부가 정보</th>
+            <th colspan="10" class="group-meta">🏷 부가 정보</th>
             <th rowspan="2" style="background:#fff;border-bottom:2px solid var(--border)">작업</th>
           </tr>
           <tr class="col-row">
@@ -236,6 +236,7 @@
             <th>결제카드</th>
             <th>구매처</th>
             <th>항공사</th>
+            <th>항공상태</th>
             <th>예약등급</th>
             <th>취소/변경</th>
             <th>규정</th>
@@ -283,6 +284,14 @@
             <td class="center"><input class="ii" name="purchase_place" value="{{ row.purchase_place or '' }}" data-orig="{{ row.purchase_place or '' }}" style="font-size:11px"></td>
             <td><input class="ii" name="airline" value="{{ row.airline or '' }}" data-orig="{{ row.airline or '' }}"></td>
             <td class="center">
+              {% set _as = row.air_status or '' %}
+              {% if _as == '예약완료' %}<span class="badge" style="background:#dbeafe;color:#1d4ed8">예약완료</span>
+              {% elif _as == '발권요청' %}<span class="badge" style="background:#fef3c7;color:#92400e">발권요청</span>
+              {% elif _as == '발권완료' %}<span class="badge" style="background:#d1fae5;color:#065f46">발권완료</span>
+              {% elif _as == '예약안함' %}<span class="badge" style="background:#f1f5f9;color:#64748b">예약안함</span>
+              {% else %}<span class="badge-cancel-empty">-</span>{% endif %}
+            </td>
+            <td class="center">
               <select class="is" name="booking_class" data-orig="{{ row.booking_class or '' }}">
                 <option value="">-</option>
                 <option value="이코노미" {% if row.booking_class == '이코노미' %}selected{% endif %}>이코노미</option>
@@ -312,7 +321,7 @@
           </tr>
           {% else %}
           <tr class="empty-row">
-            <td colspan="36">
+            <td colspan="37">
               <div class="empty-icon">✈</div>
               <div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px">등록된 출장 내역이 없습니다</div>
               <div>자동화를 시작하거나 신규 등록을 통해 출장 데이터를 추가하세요.</div>
@@ -380,6 +389,7 @@ async function addNewRow() {
     <td class="center"><input class="ii" name="payment_card" value="" data-orig=""></td>
     <td class="center"><input class="ii" name="purchase_place" value="" data-orig=""></td>
     <td><input class="ii" name="airline" value="" data-orig=""></td>
+    <td class="center"><span class="badge-cancel-empty">-</span></td>
     <td><select class="is" name="booking_class" data-orig="">
       <option value="">-</option>
       <option value="이코노미">이코노미</option>

@@ -143,10 +143,13 @@ def _process_application(doc: dict, stats: dict) -> None:
 
         for btms_res in btms_results:
             name = btms_res.get("name", "")
+
+            # BTMS 매칭 안 됨 → air_status = "예약안함"
             if not btms_res.get("found"):
-                msg = f"BTMS 미매칭 (doc_no={doc_no}, name={name})"
-                logger.warning(msg)
+                msg = f"BTMS 미매칭 → 예약안함 (doc_no={doc_no}, name={name})"
+                logger.info(msg)
                 stats["messages"].append(msg)
+                crud.update_btms_ticketing(db, doc_no, name, {"air_status": "예약안함"})
                 continue
 
             air_status = btms_res.get("air_status", "")
@@ -163,6 +166,7 @@ def _process_application(doc: dict, stats: dict) -> None:
                     "booking_class": ticketing.get("booking_class"),
                     "compliance": btms_res.get("compliance"),
                     "ticketing_completed": "발권완료",
+                    "air_status": "발권완료",
                 }
                 ok = crud.update_btms_ticketing(db, doc_no, name, update_data)
                 if ok:
@@ -170,6 +174,10 @@ def _process_application(doc: dict, stats: dict) -> None:
                     stats["success"] += 1
                 else:
                     logger.warning("발권완료 Update 대상 레코드 없음 (doc_no=%s, name=%s)", doc_no, name)
+            else:
+                # 예약완료 / 발권요청 등 → air_status만 업데이트
+                crud.update_btms_ticketing(db, doc_no, name, {"air_status": air_status})
+                logger.info("air_status Update (doc_no=%s, name=%s, status=%s)", doc_no, name, air_status)
 
     finally:
         db.close()
