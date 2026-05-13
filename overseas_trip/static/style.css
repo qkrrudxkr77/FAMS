@@ -329,12 +329,6 @@ thead .col-row th:nth-child(7) { left: 400px; min-width: 75px; }
 thead .col-row th:nth-child(8) { left: 475px; min-width: 75px; }
 thead .col-row th:nth-child(9) { left: 550px; min-width: 60px; }
 
-/* group-row 첫 번째 th (✈ 출장 내용) sticky 고정 */
-thead .group-row th:nth-child(1) {
-  position: sticky;
-  left: 0;
-  z-index: 11;
-}
 
 tbody td:nth-child(1) { left: 0; min-width: 45px; }
 tbody td:nth-child(2) { left: 45px; min-width: 80px; }
