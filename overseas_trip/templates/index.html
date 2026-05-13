@@ -195,7 +195,7 @@
           <!-- Group header row -->
           <tr class="group-row">
             <th colspan="9" class="group-trip group-trip-sticky">✈ 출장 내용</th>
-            <th colspan="4" class="group-trip-rest"></th>
+            <th colspan="4" class="group-trip group-trip-rest"></th>
             <th colspan="4" class="group-allowance">💼 직원 경비</th>
             <th colspan="9" class="group-expense">💰 발생 비용</th>
             <th colspan="9" class="group-meta">🏷 부가 정보</th>
@@ -291,14 +291,14 @@
                 <option value="퍼스트" {% if row.booking_class == '퍼스트' %}selected{% endif %}>퍼스트</option>
               </select>
             </td>
-            <td class="center"><input class="ii" name="cancel_change" value="{{ row.cancel_change or '' }}" data-orig="{{ row.cancel_change or '' }}" style="text-align:center"></td>
+            <td class="center"><input class="ii" name="cancel_change" value="{{ row.cancel_change or '' }}" data-orig="{{ row.cancel_change or '' }}" style="text-align:center;cursor:default" readonly tabindex="-1"></td>
             <td class="center"><input class="ii" name="compliance" value="{{ row.compliance or '' }}" data-orig="{{ row.compliance or '' }}" style="text-align:center"></td>
             <td><input class="ii" name="violation_reason" value="{{ row.violation_reason or '' }}" data-orig="{{ row.violation_reason or '' }}" style="max-width:160px"></td>
             <td><input class="ii" name="memo" value="{{ row.memo or '' }}" data-orig="{{ row.memo or '' }}" style="max-width:160px"></td>
             <!-- 작업 -->
             <td class="center">
               <div class="action-btns">
-                <button class="btn btn-primary btn-sm save-btn" style="display:none" onclick="saveRow({{ row.id }})">저장</button>
+                <button class="btn btn-primary btn-sm save-btn" style="display:none" onclick="saveRow({{ row.id }})">수정</button>
                 <button class="btn btn-danger btn-sm" onclick="cancelRow({{ row.id }})">취소</button>
               </div>
             </td>
@@ -446,10 +446,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const saveBtn = tr.querySelector('.save-btn');
 
     inputs.forEach(input => {
+      if (input.name === 'cancel_change') return; // readonly, 직접 편집 불가
       ['input', 'change'].forEach(ev => {
         input.addEventListener(ev, () => {
-          const changed = [...inputs].some(i => i.value !== i.dataset.orig);
+          const editableInputs = [...inputs].filter(i => i.name !== 'cancel_change');
+          const changed = editableInputs.some(i => i.value !== i.dataset.orig);
           saveBtn.style.display = changed ? 'inline-flex' : 'none';
+
+          // 수정 감지 시 cancel_change에 '수정' 자동 입력 (취소 제외)
+          const cancelInput = tr.querySelector('[name="cancel_change"]');
+          if (cancelInput && cancelInput.dataset.orig !== '취소') {
+            cancelInput.value = changed ? '수정' : (cancelInput.dataset.orig || '');
+          }
 
           // 기간 자동 계산
           const startInput = tr.querySelector('[name="start_date"]');
