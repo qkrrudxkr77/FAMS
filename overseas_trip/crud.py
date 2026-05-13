@@ -85,7 +85,7 @@ def get_all(db: Session, name: str = "", department: str = "", start_from: str =
 
 def search_all(db: Session, q: str = "", start_from: str = "", start_to: str = "") -> list:
     """통합 검색: 부서/성명/국가/지역 어디든 매칭"""
-    from sqlalchemy import or_, asc, nullslast
+    from sqlalchemy import or_
     query = db.query(OverseasTripExpense)
     if q:
         kw = f"%{q}%"
@@ -100,9 +100,9 @@ def search_all(db: Session, q: str = "", start_from: str = "", start_to: str = "
     if start_to:
         query = query.filter(OverseasTripExpense.start_date <= start_to)
     return query.order_by(
-        nullslast(asc(OverseasTripExpense.daily_allowance_date)),
-        nullslast(asc(OverseasTripExpense.start_date)),
-        nullslast(asc(OverseasTripExpense.end_date))
+        OverseasTripExpense.daily_allowance_date.asc(),
+        OverseasTripExpense.start_date.asc(),
+        OverseasTripExpense.end_date.asc()
     ).all()
 
 
