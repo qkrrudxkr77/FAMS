@@ -363,18 +363,19 @@ async function addNewRow() {
     <td class="center"><input class="ii" name="trip_purpose" value="" data-orig="" style="text-align:center;max-width:60px"></td>
     <td class="center" style="font-size:11px"><input class="ii" name="application_doc_no" value="" data-orig="" style="font-size:11px;color:var(--text-secondary)"></td>
     <td class="center" style="font-size:11px"><input class="ii" name="report_doc_no" value="" data-orig="" style="font-size:11px"></td>
-    <td class="center"><input class="ii" name="doc_status" value="" data-orig=""></td>
-    <td><input type="date" class="ii" name="daily_allowance_date" value="" data-orig=""></td>
-    <td class="right"><input type="number" class="ii" name="daily_allowance" value="" data-orig="" step="1"></td>
-    <td class="right"><input type="number" class="ii" name="personal_expense" value="" data-orig="" step="1"></td>
-    <td class="right"><input type="number" class="ii" name="refund_amount" value="" data-orig="" step="1"></td>
-    <td class="right"><input type="number" class="ii" name="accommodation" value="" data-orig="" step="1"></td>
-    <td class="right"><input type="number" class="ii" name="transportation" value="" data-orig="" step="1"></td>
-    <td class="right"><input type="number" class="ii" name="meal_expense" value="" data-orig="" step="1"></td>
-    <td class="right"><input type="number" class="ii" name="other_expense" value="" data-orig="" step="1"></td>
-    <td class="right airfare-cell"><input type="number" class="ii" name="airfare" value="" data-orig="" step="1"></td>
-    <td class="right airfare-cell"><input type="number" class="ii" name="agency_fee" value="" data-orig="" step="1"></td>
-    <td class="right air-sum-cell"><span class="calc-sum">0</span></td>
+    <td class="num"><input type="number" class="ii" name="daily_allowance" value="" data-orig=""></td>
+    <td class="center"><input type="date" class="ii" name="report_approval_date" value="" data-orig=""></td>
+    <td class="center"><input type="date" class="ii" name="daily_allowance_date" value="" data-orig=""></td>
+    <td class="num"><input type="number" class="ii" name="personal_expense" value="" data-orig=""></td>
+    <td class="num airfare-cell"><input type="number" class="ii" name="airfare" value="" data-orig="" style="color:#0e7490;font-weight:600"></td>
+    <td class="num"><input type="number" class="ii" name="agency_fee" value="" data-orig=""></td>
+    <td class="num"><input type="number" class="ii" name="refund_amount" value="" data-orig=""></td>
+    <td class="num air-sum-cell"><span class="calc-sum">-</span></td>
+    <td class="num"><input type="number" class="ii" name="accommodation" value="" data-orig=""></td>
+    <td class="num"><input type="number" class="ii" name="transportation" value="" data-orig=""></td>
+    <td class="num"><input type="number" class="ii" name="meal_expense" value="" data-orig=""></td>
+    <td class="num"><input type="number" class="ii" name="other_expense" value="" data-orig=""></td>
+    <td class="num amount-total total-cell"><span class="calc-sum">-</span></td>
     <td class="center"><input type="date" class="ii" name="airfare_payment_date" value="" data-orig=""></td>
     <td class="center"><input class="ii" name="payment_card" value="" data-orig=""></td>
     <td class="center"><input class="ii" name="purchase_place" value="" data-orig=""></td>
@@ -392,10 +393,9 @@ async function addNewRow() {
         <span class="badge-cancel-empty">-</span>
       </span>
     </td>
-    <td class="center"><input class="ii" name="compliance" value="" data-orig=""></td>
-    <td class="center"><input class="ii" name="violation_reason" value="" data-orig=""></td>
-    <td class="center"><input class="ii" name="memo" value="" data-orig=""></td>
-    <td class="center"><input class="ii" name="ticketing_completed" value="" data-orig=""></td>
+    <td class="center"><input class="ii" name="compliance" value="" data-orig="" style="text-align:center"></td>
+    <td><input class="ii" name="violation_reason" value="" data-orig="" style="max-width:160px"></td>
+    <td><input class="ii" name="memo" value="" data-orig="" style="max-width:160px"></td>
     <td style="text-align:right;">
       <button class="btn btn-primary btn-sm save-btn" onclick="saveRow(-1)">신규등록</button>
     </td>
