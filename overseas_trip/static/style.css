@@ -382,11 +382,12 @@ thead .col-row th:nth-child(27) { min-width: 110px; }  /* 항공료결제일 */
 thead .col-row th:nth-child(28) { min-width:  90px; }  /* 결제카드 */
 thead .col-row th:nth-child(29) { min-width:  80px; }  /* 구매처 */
 thead .col-row th:nth-child(30) { min-width: 110px; }  /* 항공사 */
-thead .col-row th:nth-child(31) { min-width: 160px; }  /* 예약등급 */
-thead .col-row th:nth-child(32) { min-width:  80px; }  /* 취소/변경 */
-thead .col-row th:nth-child(33) { min-width:  70px; }  /* 규정 */
-thead .col-row th:nth-child(34) { min-width: 140px; }  /* 규정위반사유 */
-thead .col-row th:nth-child(35) { min-width: 140px; }  /* 비고 */
+thead .col-row th:nth-child(31) { min-width:  90px; }  /* 항공상태 */
+thead .col-row th:nth-child(32) { min-width: 180px; width: 180px; }  /* 예약등급 */
+thead .col-row th:nth-child(33) { min-width:  80px; }  /* 취소/변경 */
+thead .col-row th:nth-child(34) { min-width:  70px; }  /* 규정 */
+thead .col-row th:nth-child(35) { min-width: 140px; }  /* 규정위반사유 */
+thead .col-row th:nth-child(36) { min-width: 140px; }  /* 비고 */
 
 tbody td {
   padding: 10px 10px; border-bottom: 1px solid #f1f5f9;
