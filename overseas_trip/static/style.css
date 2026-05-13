@@ -324,21 +324,21 @@ thead .col-row th:nth-child(1) { left: 0;    min-width: 45px; }
 thead .col-row th:nth-child(2) { left: 45px;  min-width: 110px; }
 thead .col-row th:nth-child(3) { left: 155px; min-width: 50px; }
 thead .col-row th:nth-child(4) { left: 205px; min-width: 70px; }
-thead .col-row th:nth-child(5) { left: 275px; min-width: 80px; }
-thead .col-row th:nth-child(6) { left: 355px; min-width: 75px; }
-thead .col-row th:nth-child(7) { left: 400px; min-width: 120px; width: 120px; max-width: 120px; }
-thead .col-row th:nth-child(8) { left: 520px; min-width: 120px; width: 120px; max-width: 120px; }
-thead .col-row th:nth-child(9) { left: 640px; min-width:  60px; }
+thead .col-row th:nth-child(5) { left: 275px; min-width: 80px; width: 80px; max-width: 80px; }
+thead .col-row th:nth-child(6) { left: 355px; min-width: 90px; width: 90px; max-width: 90px; }
+thead .col-row th:nth-child(7) { left: 445px; min-width: 120px; width: 120px; max-width: 120px; }
+thead .col-row th:nth-child(8) { left: 565px; min-width: 120px; width: 120px; max-width: 120px; }
+thead .col-row th:nth-child(9) { left: 685px; min-width:  60px; }
 
 tbody td:nth-child(1) { left: 0;    min-width: 45px; }
 tbody td:nth-child(2) { left: 45px;  min-width: 110px; }
 tbody td:nth-child(3) { left: 155px; min-width: 50px; }
 tbody td:nth-child(4) { left: 205px; min-width: 70px; }
-tbody td:nth-child(5) { left: 275px; min-width: 80px; }
-tbody td:nth-child(6) { left: 355px; min-width: 75px; }
-tbody td:nth-child(7) { left: 430px; min-width: 120px; width: 120px; max-width: 120px; }
-tbody td:nth-child(8) { left: 550px; min-width: 120px; width: 120px; max-width: 120px; }
-tbody td:nth-child(9) { left: 670px; min-width:  60px; }
+tbody td:nth-child(5) { left: 275px; min-width: 80px; width: 80px; max-width: 80px; }
+tbody td:nth-child(6) { left: 355px; min-width: 90px; width: 90px; max-width: 90px; }
+tbody td:nth-child(7) { left: 445px; min-width: 120px; width: 120px; max-width: 120px; }
+tbody td:nth-child(8) { left: 565px; min-width: 120px; width: 120px; max-width: 120px; }
+tbody td:nth-child(9) { left: 685px; min-width:  60px; }
 
 tbody tr:hover td:nth-child(-n+9) { background: #f0f4f8; }
 
@@ -360,7 +360,8 @@ tbody tr:hover td:nth-child(-n+9) { background: #f0f4f8; }
 
 /* 각 컬럼 th / td 최소 너비 */
 thead .col-row th:nth-child(2)  { min-width: 110px; }  /* 부서 */
-thead .col-row th:nth-child(10) { min-width: 560px; }  /* 제목 */
+thead .col-row th:nth-child(10),
+tbody td:nth-child(10) { min-width: 560px; width: 560px; max-width: 560px; }  /* 제목 */
 thead .col-row th:nth-child(11) { min-width:  60px; }  /* 출장목적 */
 thead .col-row th:nth-child(12) { min-width: 130px; }  /* 품의서 */
 thead .col-row th:nth-child(13) { min-width: 130px; }  /* 보고서 */

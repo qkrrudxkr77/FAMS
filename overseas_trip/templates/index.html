@@ -258,7 +258,7 @@
             <td class="center"><input type="date" class="ii" name="start_date" value="{{ row.start_date or '' }}" data-orig="{{ row.start_date or '' }}"></td>
             <td class="center"><input type="date" class="ii" name="end_date" value="{{ row.end_date or '' }}" data-orig="{{ row.end_date or '' }}"></td>
             <td class="center duration-cell">{% if duration %}<span class="badge badge-info">{{ duration }}일</span>{% else %}-{% endif %}</td>
-            <td><input class="ii" name="title" value="{{ row.title or '' }}" data-orig="{{ row.title or '' }}" style="min-width:540px"></td>
+            <td><input class="ii" name="title" value="{{ row.title or '' }}" data-orig="{{ row.title or '' }}" style="min-width:540px;width:540px"></td>
             <td class="center"><input class="ii" name="trip_purpose" value="{{ row.trip_purpose or '' }}" data-orig="{{ row.trip_purpose or '' }}" style="text-align:center;max-width:60px"></td>
             <td class="center" style="font-size:11px"><input class="ii" name="application_doc_no" value="{{ row.application_doc_no or '' }}" data-orig="{{ row.application_doc_no or '' }}" style="font-size:11px;color:var(--text-secondary)"></td>
             <td class="center" style="font-size:11px"><input class="ii" name="report_doc_no" value="{{ row.report_doc_no or '' }}" data-orig="{{ row.report_doc_no or '' }}" style="font-size:11px"></td>
@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function () {
     { el: document.querySelector('.group-meta'),      label: '🏷 부가 정보' },
   ].filter(g => g.el);
 
-  const STICKY_WIDTH = 650; // 고정 컬럼 9개 합계 너비 (590+60)
+  const STICKY_WIDTH = 745; // 고정 컬럼 9개 합계 너비 (685+60)
 
   function updateGroupLabel() {
     const scrollLeft = tableWrap.scrollLeft;
