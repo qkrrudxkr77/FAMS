@@ -6,9 +6,9 @@ URL: https://btms4.redcap.co.kr/page/BT_WR_0210
 
 주요 기능:
   - 출장자명 + 출장기간으로 검색 → 일치 행 탐색
-  - 항공 컬럼 값 확인 (예약완료 / 발권완료)
+  - 항공 컬럼 값 확인 (예약완료 / 발권요청 / 발권완료)
   - 발권완료 팝업에서 항공료, 수수료, 발권일, 항공사, 예약등급 추출
-  - 예약완료 팝업 결제처리 (TODO: 미구현)
+  - 예약완료 + 문서상태 '완료' 시 자동 결제처리 (예약완료 → 발권요청)
 """
 
 import logging
@@ -267,6 +267,93 @@ def _click_air_link(page: Page, row_index: int, link_text: str) -> None:
             return
     # 폴백: 텍스트로 검색
     page.click(f"a:has-text('{link_text}')", timeout=5000)
+
+
+def _process_payment(page: Page, row_index: int) -> bool:
+    """
+    예약완료 + 문서상태 '완료' 시 결제처리 자동화.
+    플로우:
+      1. 예약완료 링크 클릭 → 예약상세내역 모달
+      2. '결제' 버튼 클릭 → 요금규정 모달
+      3. 약관 체크박스 체크 → '다음단계' 클릭
+      4. '결제요청' 클릭 → confirm 다이얼로그 자동 수락
+      5. 완료 모달 '확인' 클릭 → 닫기
+    성공 시 True (이후 BTMS 항공 상태는 '발권요청'으로 변함)
+    """
+    try:
+        # 1. 예약완료 링크 클릭
+        _click_air_link(page, row_index, "예약완료")
+        page.wait_for_function(
+            """() => {
+                for (const el of document.querySelectorAll('*')) {
+                    if ((el.textContent || '').trim() === '예약상세내역' && el.offsetParent !== null) return true;
+                }
+                return false;
+            }""",
+            timeout=15000
+        )
+        page.wait_for_timeout(1500)
+        logger.info("[결제] 예약상세내역 모달 오픈")
+
+        frame = _get_modal_frame(page)
+
+        # 2. '결제' 버튼 클릭 (data-desc='결제' 자식 span 보유)
+        clicked = frame.evaluate("""() => {
+            const btns = document.querySelectorAll('button');
+            for (const b of btns) {
+                if (b.querySelector('[data-desc="결제"]')) { b.click(); return true; }
+            }
+            return false;
+        }""")
+        if not clicked:
+            raise RuntimeError("'결제' 버튼을 찾을 수 없음")
+        page.wait_for_timeout(2000)
+        logger.info("[결제] '결제' 버튼 클릭")
+
+        # 3. 요금규정 단계: 체크박스 체크 + '다음단계' 클릭
+        frame.evaluate("""() => {
+            document.querySelectorAll('input[type="checkbox"]').forEach(c => { if (!c.checked) c.click(); });
+        }""")
+        page.wait_for_timeout(500)
+
+        frame.evaluate("""() => {
+            const btns = document.querySelectorAll('button');
+            for (const b of btns) {
+                if (b.getAttribute('data-desc') === '_다음단계') { b.click(); return; }
+            }
+        }""")
+        page.wait_for_timeout(2000)
+        logger.info("[결제] '다음단계' 클릭")
+
+        # 4. 결제 단계: confirm 다이얼로그 자동 수락 + '결제요청' 클릭
+        page.once("dialog", lambda dialog: dialog.accept())
+        frame.evaluate("""() => {
+            const btns = document.querySelectorAll('button');
+            for (const b of btns) {
+                if ((b.textContent || '').trim() === '결제요청') { b.click(); return; }
+            }
+        }""")
+        page.wait_for_timeout(3000)
+        logger.info("[결제] '결제요청' 클릭 + confirm 자동 수락")
+
+        # 5. 완료 모달: '확인' 클릭
+        frame.evaluate("""() => {
+            const btns = document.querySelectorAll('button');
+            for (const b of btns) {
+                if ((b.textContent || '').trim() === '확인') { b.click(); return; }
+            }
+        }""")
+        page.wait_for_timeout(1500)
+        logger.info("[결제] 완료 모달 '확인' 클릭")
+
+        return True
+    except Exception as e:
+        logger.error("[결제] 결제처리 실패: %s", e)
+        try:
+            page.keyboard.press("Escape")
+        except Exception:
+            pass
+        return False
 
 
 def _get_modal_frame(page: Page):
@@ -582,15 +669,16 @@ def process_btms_for_traveler(
             # 승인 대기 중 - 아무 작업 없이 스킵
             logger.info("예약완료 + 진행중 상태 - 대기 (출장자: %s)", name)
         elif doc_status == "완료":
-            # TODO: 결제처리 자동화 (현재 미구현)
-            # 조건: 워크쓰루 문서상태 = '완료' + BTMS 항공 컬럼 = '예약완료'
-            # 처리 흐름: BTMS 종합예약내역 → 해당 행의 '예약완료' 링크 클릭
-            #           → 팝업 오픈 → 결제처리 버튼 클릭
-            # 보류 이유: BTMS 결제 팝업 UI 구조를 직접 확인하지 못함
-            #           구현 전 BTMS 결제 팝업 열어서 버튼 셀렉터 및 결제 플로우 확인 필요
-            # 구현 시: scraper_btms.py 내 process_payment() 함수로 분리 구현 예정
-            logger.info("예약완료 + 완료 상태 - 결제처리 미구현 (출장자: %s)", name)
-            result["payment_done"] = False
+            # 결제처리 자동화: 예약완료 → 발권요청
+            logger.info("예약완료 + 완료 상태 - 결제처리 시작 (출장자: %s)", name)
+            ok = _process_payment(page, row_info["row_index"])
+            result["payment_done"] = ok
+            if ok:
+                # 결제 후 BTMS 항공 상태는 '발권요청'으로 변경됨
+                result["air_status"] = "발권요청"
+                logger.info("결제처리 완료 → air_status=발권요청 (출장자: %s)", name)
+            else:
+                logger.warning("결제처리 실패 - air_status 유지: 예약완료 (출장자: %s)", name)
 
     elif row_info["air_status"] == "발권완료":
         try:
