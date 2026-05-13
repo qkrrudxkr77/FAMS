@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>FAMS · 해외출장관리</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ============= Sidebar ============= -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="22" x2="21" y2="22"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <polygon points="12 2 3 10 21 10"/>
+        <line x1="6" y1="10" x2="6" y2="22"/>
+        <line x1="10" y1="10" x2="10" y2="22"/>
+        <line x1="14" y1="10" x2="14" y2="22"/>
+        <line x1="18" y1="10" x2="18" y2="22"/>
+      </svg>
+    </div>
+    <div class="sidebar-brand">FAMS</div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="메뉴 접기/펼치기">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="toggleIcon">
+        <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div class="sidebar-section">MAIN</div>
+  <ul class="sidebar-nav">
+    <li>
+      <a href="#">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+        <span class="menu-text">대시보드</span>
+      </a>
+    </li>
+    <li>
+      <a href="/" class="active">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></span>
+        <span class="menu-text">해외출장관리</span>
+      </a>
+    </li>
+  </ul>
+  <div class="sidebar-user">
+    <div class="user-avatar">
+      <span id="userPhotoFallback" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;">박</span>
+      <img src="/api/user-photo" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;"
+        onload="if(this.naturalWidth>0){this.style.display='block';document.getElementById('userPhotoFallback').style.display='none';}"
+        onerror="this.style.display='none';">
+    </div>
+    <div class="user-info">
+      <div class="user-name">박병훈 부장 <span style="color:#94a3b8;font-weight:400;font-size:11px">HR팀</span></div>
+      <div class="user-meta">marinhoon@bodyfriend.co.kr</div>
+    </div>
+  </div>
+  <div class="sidebar-logout">
+    <a href="#" onclick="doLogout()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span class="logout-text">로그아웃</span>
+    </a>
+  </div>
+</aside>
+
+<!-- ============= Main ============= -->
+<main class="main">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1 class="page-title">
+      <span class="page-title-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+      </span>
+      해외출장관리
+    </h1>
+    <div class="page-actions">
+      <button class="btn btn-secondary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        엑셀 다운로드
+      </button>
+      <a href="/row/new" class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        신규 등록
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  {% set total_count = stats.total_count %}
+  {% set total_airfare = stats.total_airfare %}
+  {% set ticketed = stats.ticketed %}
+  {% set cancelled = stats.cancelled %}
+  <div class="stats-grid">
+    <div class="stat-card blue">
+      <div class="stat-icon blue">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+      </div>
+      <div>
+        <div class="stat-label">전체 출장 건수</div>
+        <div class="stat-value">{{ total_count }}<span style="font-size:14px;font-weight:500;color:var(--text-secondary)"> 건</span></div>
+        <div class="stat-meta">총 등록된 해외출장</div>
+      </div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon green">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div>
+        <div class="stat-label">발권 완료</div>
+        <div class="stat-value">{{ ticketed }}<span style="font-size:14px;font-weight:500;color:var(--text-secondary)"> 건</span></div>
+        <div class="stat-meta">전체 {{ total_count }}건 중</div>
+      </div>
+    </div>
+    <div class="stat-card orange">
+      <div class="stat-icon orange">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div>
+        <div class="stat-label">항공료 합계</div>
+        <div class="stat-value" style="font-size:18px">{{ "{:,.0f}".format(total_airfare|float) if total_airfare else 0 }}<span style="font-size:12px;font-weight:500;color:var(--text-secondary)"> 원</span></div>
+        <div class="stat-meta">발권 완료분 기준</div>
+      </div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-icon purple">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      </div>
+      <div>
+        <div class="stat-label">취소</div>
+        <div class="stat-value">{{ cancelled }}<span style="font-size:14px;font-weight:500;color:var(--text-secondary)"> 건</span></div>
+        <div class="stat-meta">취소 처리 완료</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 자동화 트리거 -->
+  <div class="trigger-card">
+    <div class="trigger-info">
+      <div class="trigger-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      </div>
+      <div class="trigger-text">
+        <b>자동 연동</b>
+        워크쓰루 해외출장 신청서/보고서 및 BTMS 항공권 발권 정보를 자동으로 수집합니다.
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="trigger-status"></span>
+      <button class="btn btn-warning" id="triggerBtn" onclick="triggerAutomation()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="triggerBtnIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span id="triggerBtnText">자동화 시작</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-card">
+    <form method="get" action="/" id="filter-form">
+      <div class="filter-row">
+        <div class="field-group">
+          <label class="field-label">기간 (시작일 기준)</label>
+          <div class="date-range">
+            <input type="date" name="start_from" class="field-input" value="{{ filters.start_from }}">
+            <span class="date-range-sep">~</span>
+            <input type="date" name="start_to" class="field-input" value="{{ filters.start_to }}">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">검색</label>
+          <input type="text" name="q" class="field-input" placeholder="부서, 성명, 국가, 지역 검색..." value="{{ filters.q }}">
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:36px;align-self:end">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          검색
+        </button>
+        <a href="/" class="btn btn-secondary" style="height:36px;align-self:end">초기화</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Data Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">출장 내역</div>
+      <div class="table-count">총 <b>{{ total_count }}</b>건</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <!-- Group header row -->
+          <tr class="group-row">
+            <th colspan="13" class="group-trip">✈ 출장 내용</th>
+            <th colspan="4" class="group-allowance">💼 직원 경비</th>
+            <th colspan="9" class="group-expense">💰 발생 비용</th>
+            <th colspan="9" class="group-meta">🏷 부가 정보</th>
+            <th rowspan="2" style="background:#fff;border-bottom:2px solid var(--border)">작업</th>
+          </tr>
+          <tr class="col-row">
+            <!-- 출장내용 -->
+            <th>No.</th>
+            <th>부서</th>
+            <th>직급</th>
+            <th>성명</th>
+            <th>국가</th>
+            <th>지역</th>
+            <th>시작일</th>
+            <th>종료일</th>
+            <th>기간</th>
+            <th style="min-width:180px">제목</th>
+            <th>출장목적</th>
+            <th>해외출장품의서</th>
+            <th>해외출장보고서</th>
+            <!-- 직원경비 -->
+            <th>출장일비</th>
+            <th>보고서 승인 완료일</th>
+            <th>일비지급일</th>
+            <th>개인경비</th>
+            <!-- 발생비용 -->
+            <th>항공료</th>
+            <th>여행사수수료</th>
+            <th>환불액</th>
+            <th>항공+수수료</th>
+            <th>숙박비</th>
+            <th>교통비</th>
+            <th>식대</th>
+            <th>기타<br><span style="font-weight:400;font-size:10px;color:var(--text-muted)">비자/보험/e-sim</span></th>
+            <th>합계</th>
+            <!-- 부가정보 -->
+            <th>항공료결제일</th>
+            <th>결제카드</th>
+            <th>구매처</th>
+            <th>항공사</th>
+            <th>예약등급</th>
+            <th>취소/변경</th>
+            <th>규정</th>
+            <th>규정위반사유</th>
+            <th>비고</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% set duration = ((row.end_date - row.start_date).days + 1) if (row.start_date and row.end_date) else None %}
+          {% set air_sum = (row.airfare or 0) + (row.agency_fee or 0) - (row.refund_amount or 0) %}
+          {% set total_sum = air_sum + (row.accommodation or 0) + (row.transportation or 0) + (row.meal_expense or 0) + (row.other_expense or 0) + (row.daily_allowance or 0) + (row.personal_expense or 0) %}
+          <tr>
+            <td class="center no-cell">{{ loop.index }}</td>
+            <td>{{ row.department or '-' }}</td>
+            <td class="center">{{ row.position or '-' }}</td>
+            <td style="font-weight:600">{{ row.name or '-' }}</td>
+            <td>
+              {% if row.country %}<span class="country-flag">🌏 {{ row.country }}</span>{% else %}<span class="muted">-</span>{% endif %}
+            </td>
+            <td>{{ row.region or '-' }}</td>
+            <td class="center">{{ row.start_date or '-' }}</td>
+            <td class="center">{{ row.end_date or '-' }}</td>
+            <td class="center">{% if duration %}<span class="badge badge-info">{{ duration }}일</span>{% else %}-{% endif %}</td>
+            <td title="{{ row.title }}" style="max-width:240px;overflow:hidden;text-overflow:ellipsis">{{ row.title or '-' }}</td>
+            <td class="center">{% if row.trip_purpose %}<span class="badge-purpose">{{ row.trip_purpose }}</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+            <td class="center" style="font-size:11px;color:var(--text-secondary)">{{ row.application_doc_no or '-' }}</td>
+            <td class="center" style="font-size:11px">
+              {% if row.report_doc_no == '취소' %}<span class="badge badge-cancel">취소</span>
+              {% elif row.report_doc_no %}<span style="color:var(--text-secondary)">{{ row.report_doc_no }}</span>
+              {% else %}<span class="muted">-</span>{% endif %}
+            </td>
+            <!-- 직원경비 -->
+            <td class="num">{% if row.daily_allowance %}{{ "{:,.0f}".format(row.daily_allowance|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="center">{{ row.report_approval_date or '-' }}</td>
+            <td class="center">{{ row.daily_allowance_date or '-' }}</td>
+            <td class="num">{% if row.personal_expense %}{{ "{:,.0f}".format(row.personal_expense|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <!-- 발생비용 -->
+            <td class="num airfare-cell">{% if row.airfare %}{{ "{:,.0f}".format(row.airfare|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num">{% if row.agency_fee %}{{ "{:,.0f}".format(row.agency_fee|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num">{% if row.refund_amount %}{{ "{:,.0f}".format(row.refund_amount|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num">{% if air_sum %}{{ "{:,.0f}".format(air_sum|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num">{% if row.accommodation %}{{ "{:,.0f}".format(row.accommodation|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num">{% if row.transportation %}{{ "{:,.0f}".format(row.transportation|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num">{% if row.meal_expense %}{{ "{:,.0f}".format(row.meal_expense|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num">{% if row.other_expense %}{{ "{:,.0f}".format(row.other_expense|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num amount-total">{% if total_sum %}{{ "{:,.0f}".format(total_sum|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <!-- 부가정보 -->
+            <td class="center">{{ row.airfare_payment_date or '-' }}</td>
+            <td class="center" style="font-size:11px">{{ row.payment_card or '-' }}</td>
+            <td class="center" style="font-size:11px">{{ row.purchase_place or '-' }}</td>
+            <td>{{ row.airline or '-' }}</td>
+            <td class="center">
+              {% if row.booking_class %}
+                {% set is_biz = '비즈니스' in row.booking_class %}
+                {% set is_first = '퍼스트' in row.booking_class or '일등' in row.booking_class %}
+                <span class="badge badge-class {% if is_biz %}business{% elif is_first %}first{% endif %}">{{ row.booking_class }}</span>
+              {% else %}-{% endif %}
+            </td>
+            <td class="center">
+              {% if row.cancel_change == '취소' %}<span class="badge badge-cancel">취소</span>
+              {% elif row.cancel_change %}{{ row.cancel_change }}
+              {% else %}<span class="muted">-</span>{% endif %}
+            </td>
+            <td class="center">
+              {% if row.compliance == '준수' %}<span class="badge badge-done">준수</span>
+              {% elif row.compliance %}{{ row.compliance }}
+              {% else %}<span class="muted">-</span>{% endif %}
+            </td>
+            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis" title="{{ row.violation_reason or '' }}">{{ row.violation_reason or '-' }}</td>
+            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis" title="{{ row.memo or '' }}">{{ row.memo or '-' }}</td>
+            <!-- 작업 -->
+            <td class="center">
+              <div class="action-btns">
+                <a href="/row/{{ row.id }}/edit" class="btn btn-secondary btn-sm">수정</a>
+                <button class="btn btn-danger btn-sm" onclick="cancelRow({{ row.id }})">취소</button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr class="empty-row">
+            <td colspan="36">
+              <div class="empty-icon">✈</div>
+              <div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px">등록된 출장 내역이 없습니다</div>
+              <div>자동화를 시작하거나 신규 등록을 통해 출장 데이터를 추가하세요.</div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ── 사이드바 토글 ── */
+(function() {
+  const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
+  if (collapsed) {
+    document.getElementById('sidebar').classList.add('collapsed');
+    document.body.classList.add('sidebar-collapsed');
+  }
+})();
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const isCollapsed = sidebar.classList.toggle('collapsed');
+  document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+  localStorage.setItem('sidebarCollapsed', isCollapsed ? '1' : '0');
+}
+
+/* ── 자동화 트리거 ── */
+let _pollTimer = null;
+
+async function triggerAutomation() {
+  const btn = document.getElementById('triggerBtn');
+  const status = document.getElementById('trigger-status');
+  const icon = document.getElementById('triggerBtnIcon');
+  const text = document.getElementById('triggerBtnText');
+
+  btn.disabled = true;
+  icon.outerHTML = '<span class="spin" id="triggerBtnIcon" style="display:inline-flex;width:14px;height:14px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span>';
+  text.textContent = '실행 중...';
+  status.className = 'running';
+  status.innerHTML = '<span class="spin" style="display:inline-flex"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span> 자동화 진행 중...';
+
+  try {
+    const res = await fetch('/api/trigger', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      setDone(false, data.message || '이미 실행 중이거나 오류가 발생했습니다.');
+      return;
+    }
+    // 폴링으로 완료 감지
+    _pollTimer = setInterval(pollStatus, 2000);
+  } catch (e) {
+    setDone(false, '요청 실패: ' + e);
+  }
+}
+
+async function pollStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    if (!data.running) {
+      clearInterval(_pollTimer);
+      setDone(true, '완료! 새로고침합니다...');
+      setTimeout(() => location.reload(), 1200);
+    }
+  } catch (_) {}
+}
+
+function setDone(ok, msg) {
+  const btn = document.getElementById('triggerBtn');
+  const status = document.getElementById('trigger-status');
+  const iconEl = document.getElementById('triggerBtnIcon');
+  const text = document.getElementById('triggerBtnText');
+
+  btn.disabled = false;
+  if (iconEl) iconEl.outerHTML = '<svg id="triggerBtnIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+  text.textContent = '자동화 시작';
+  status.className = ok ? 'done-ok' : 'done-err';
+  status.textContent = ok ? '✅ ' + msg : '❌ ' + msg;
+  if (ok) return; // reload가 처리
+  setTimeout(() => { status.textContent = ''; status.className = ''; }, 5000);
+}
+
+/* ── 로그아웃 ── */
+function doLogout() {
+  localStorage.clear();
+  sessionStorage.clear();
+  document.cookie.split(';').forEach(c => {
+    document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+  });
+  location.href = 'https://portal.bodyfriend.co.kr/portal/main/portalMain.do';
+}
+
+/* ── 취소 ── */
+async function cancelRow(rowId) {
+  if (!confirm('이 출장 건을 취소 처리하시겠습니까?\n해외출장보고서와 취소/변경 컬럼이 "취소"로 변경됩니다.')) return;
+  try {
+    const res = await fetch(`/row/${rowId}/cancel`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) location.reload();
+    else alert('취소 실패: ' + (data.message || ''));
+  } catch (e) { alert('요청 실패: ' + e); }
+}
+</script>
+</body>
+</html>

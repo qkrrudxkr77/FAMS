@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 — FAMS</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #F3F4F6; }
+        .login-box {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+            padding: 48px 56px;
+            text-align: center;
+            width: 360px;
+        }
+        .login-logo { font-size: 32px; font-weight: 700; color: #2563EB; letter-spacing: -0.03em; margin-bottom: 8px; }
+        .login-subtitle { font-size: 13px; color: #9CA3AF; margin-bottom: 36px; }
+        .login-spinner { font-size: 13px; color: #6B7280; }
+        .spinner {
+            display: inline-block; width: 18px; height: 18px;
+            border: 2px solid #E5E7EB; border-top-color: #2563EB;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+            vertical-align: middle; margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .login-error { color: #EF4444; font-size: 13px; margin-top: 16px; display: none; }
+    </style>
+</head>
+<body>
+<div class="login-box">
+    <div class="login-logo">FAMS</div>
+    <div class="login-subtitle">재무회계관리시스템</div>
+    <div class="login-spinner">
+        <span class="spinner"></span>인증 처리 중...
+    </div>
+    <div class="login-error" id="loginError">인증에 실패했습니다. 다시 시도해주세요.</div>
+</div>
+<script>
+    (function () {
+        var params = new URLSearchParams(window.location.search);
+        var token = params.get('token');
+
+        if (!token) {
+            // Workthrough 토큰 없이 접근 — 대기
+            document.querySelector('.login-spinner').innerHTML = 'Workthrough SSO를 통해 접속해주세요.';
+            return;
+        }
+
+        // 토큰을 /api/token/login으로 전달 (server-side redirect 처리)
+        window.location.href = '/api/token/login?token=' + encodeURIComponent(token);
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <button class="sidebar-toggle" onclick="FAMS.toggleSidebar()">☰</button>
+        <span class="sidebar-title">
+            <svg class="sidebar-logo" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>
+            </svg>
+            FAMS
+        </span>
+    </div>
+    <ul class="sidebar-menu">
+        <li class="menu-section-label">MAIN</li>
+        <li>
+            <a href="/dashboard">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/>
+                        <rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
+                    </svg>
+                </span>
+                <span class="menu-text">대시보드</span>
+            </a>
+        </li>
+        <li>
+            <a href="/overseas-trip">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.73 12 19.79 19.79 0 0 1 1.68 3.37 2 2 0 0 1 3.68 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l.81-.81a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        <path d="M16 3h6v6"/><path d="M22 3l-7.5 7.5"/>
+                    </svg>
+                </span>
+                <span class="menu-text">해외출장관리</span>
+            </a>
+        </li>
+
+    </ul>
+    <div class="sidebar-profile">
+        <div class="avatar" id="userAvatar"></div>
+        <div class="profile-info">
+            <div class="user-name-line">
+                <span class="user-name" id="userName"></span>
+                <span class="user-dept" id="userDept"></span>
+            </div>
+            <div class="user-email" id="userEmail"></div>
+        </div>
+    </div>
+    <div class="sidebar-logout">
+        <a href="#" onclick="doLogout(); return false;">
+            <span class="menu-icon">↩</span>
+            <span class="menu-text">로그아웃</span>
+        </a>
+    </div>
+</nav>
+<script>
+    async function doLogout() {
+        await FAMS.request('GET', '/logout');
+        FAMS.clearAuth();
+        window.location.href = '/';
+    }
+</script>

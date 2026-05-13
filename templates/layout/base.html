@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FAMS{% endblock %}</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <script>
+    // 로그인 redirect 후 ?at= 파라미터에서 Access Token 즉시 흡수
+    (function absorbAuthToken() {
+        var params = new URLSearchParams(window.location.search);
+        var at = params.get('at');
+        if (!at) return;
+
+        localStorage.setItem('accessToken', at);
+
+        try {
+            var parts = at.split('.');
+            if (parts.length === 3) {
+                var raw = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+                var bytes = Uint8Array.from(raw, function(c) { return c.charCodeAt(0); });
+                var payload = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+                localStorage.setItem('userInfo', JSON.stringify({
+                    email:        payload.sub          || '',
+                    name:         payload.name         || '',
+                    deptName:     payload.deptName     || '',
+                    positionName: payload.positionName || '',
+                    levelName:    payload.levelName    || '',
+                    role:         payload.role         || '',
+                    deptId:       payload.deptId       || null
+                }));
+            }
+        } catch (e) { /* 파싱 실패 무시 */ }
+
+        history.replaceState(null, '', window.location.pathname);
+    })();
+    </script>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="app-container">
+    {% include "layout/sidebar.html" %}
+    <main class="main-content">
+        <div class="main-content-inner">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</div>
+<script src="/js/common.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
