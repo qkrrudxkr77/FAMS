@@ -194,7 +194,8 @@
         <thead>
           <!-- Group header row -->
           <tr class="group-row">
-            <th colspan="13" class="group-trip">✈ 출장 내용</th>
+            <th colspan="9" class="group-trip group-trip-sticky">✈ 출장 내용</th>
+            <th colspan="4" class="group-trip group-trip-rest"></th>
             <th colspan="4" class="group-allowance">💼 직원 경비</th>
             <th colspan="9" class="group-expense">💰 발생 비용</th>
             <th colspan="9" class="group-meta">🏷 부가 정보</th>
@@ -344,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function () {
     { el: document.querySelector('.group-meta'),      label: '🏷 부가 정보' },
   ].filter(g => g.el);
 
-  const STICKY_WIDTH = 610; // 고정 컬럼 9개 합계 너비
+  const STICKY_WIDTH = 650; // 고정 컬럼 9개 합계 너비 (590+60)
 
   function updateGroupLabel() {
     const scrollLeft = tableWrap.scrollLeft;
