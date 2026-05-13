@@ -210,7 +210,7 @@
             <th>시작일</th>
             <th>종료일</th>
             <th>기간</th>
-            <th style="min-width:180px">제목</th>
+            <th style="min-width:320px">제목</th>
             <th>출장목적</th>
             <th>해외출장품의서</th>
             <th>해외출장보고서</th>
@@ -258,7 +258,7 @@
             <td class="center">{{ row.start_date or '-' }}</td>
             <td class="center">{{ row.end_date or '-' }}</td>
             <td class="center">{% if duration %}<span class="badge badge-info">{{ duration }}일</span>{% else %}-{% endif %}</td>
-            <td title="{{ row.title }}" style="max-width:240px;overflow:hidden;text-overflow:ellipsis">{{ row.title or '-' }}</td>
+            <td title="{{ row.title }}" style="max-width:380px;overflow:hidden;text-overflow:ellipsis">{{ row.title or '-' }}</td>
             <td class="center">{% if row.trip_purpose %}<span class="badge-purpose">{{ row.trip_purpose }}</span>{% else %}<span class="muted">-</span>{% endif %}</td>
             <td class="center" style="font-size:11px;color:var(--text-secondary)">{{ row.application_doc_no or '-' }}</td>
             <td class="center" style="font-size:11px">

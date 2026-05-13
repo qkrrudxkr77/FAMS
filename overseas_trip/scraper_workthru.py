@@ -408,11 +408,37 @@ def _extract_travelers_table(soup: BeautifulSoup) -> list:
 
 def _extract_trip_purpose(soup: BeautifulSoup) -> str:
     """
-    출장목적 추출. 페이지 전체에서 "A. 기획", "B. 생산" 같은 알파벳 prefix 패턴을 찾는다.
+    출장목적 추출. '출장목적' 레이블 옆 셀에서 값을 읽어 맨 앞 알파벳 1글자를 반환.
+    예: 'B. 생산 및 품질관리' → 'B'
     """
-    # 페이지 전체 텍스트에서 '[A-Z]. <한글>' 패턴 매칭
+    # '출장목적' 텍스트가 있는 th/td를 찾아 바로 옆 td의 값을 읽음
+    for tag in soup.find_all(string=re.compile(r"출장목적")):
+        parent = tag.find_parent(["th", "td", "label", "span", "div"])
+        if not parent:
+            continue
+        # 같은 tr 안 다음 td
+        tr = parent.find_parent("tr")
+        if tr:
+            cells = tr.find_all(["td", "th"])
+            for i, cell in enumerate(cells):
+                if "출장목적" in cell.get_text():
+                    # 바로 옆 셀
+                    if i + 1 < len(cells):
+                        val = cells[i + 1].get_text(strip=True)
+                        m = re.match(r"([A-Z])", val)
+                        if m:
+                            return m.group(1)
+        # tr 구조가 없으면 형제 태그에서 탐색
+        nxt = parent.find_next_sibling(["td", "th", "span", "div"])
+        if nxt:
+            val = nxt.get_text(strip=True)
+            m = re.match(r"([A-Z])", val)
+            if m:
+                return m.group(1)
+
+    # fallback: '출장목적' 레이블 직후 텍스트에서 패턴 매칭
     text = soup.get_text(separator=" ", strip=True)
-    m = re.search(r"\b([A-Z])\.\s*[가-힣]", text)
+    m = re.search(r"출장목적\s*([A-Z])\.", text)
     if m:
         return m.group(1)
     return ""
