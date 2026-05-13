@@ -311,6 +311,36 @@ thead .col-row th {
   color: var(--text-primary); padding: 10px 10px;
   border-bottom: 2px solid var(--border); white-space: nowrap; text-align: center;
 }
+
+/* 첫 9개 컬럼 sticky 고정 (No. ~ 기간) */
+thead .col-row th:nth-child(-n+9),
+tbody td:nth-child(-n+9) {
+  position: sticky;
+  background: #fff;
+  z-index: 10;
+}
+thead .col-row th:nth-child(1) { left: 0; min-width: 45px; }
+thead .col-row th:nth-child(2) { left: 45px; min-width: 80px; }
+thead .col-row th:nth-child(3) { left: 125px; min-width: 50px; }
+thead .col-row th:nth-child(4) { left: 175px; min-width: 70px; }
+thead .col-row th:nth-child(5) { left: 245px; min-width: 80px; }
+thead .col-row th:nth-child(6) { left: 325px; min-width: 75px; }
+thead .col-row th:nth-child(7) { left: 400px; min-width: 75px; }
+thead .col-row th:nth-child(8) { left: 475px; min-width: 75px; }
+thead .col-row th:nth-child(9) { left: 550px; min-width: 60px; }
+
+tbody td:nth-child(1) { left: 0; min-width: 45px; }
+tbody td:nth-child(2) { left: 45px; min-width: 80px; }
+tbody td:nth-child(3) { left: 125px; min-width: 50px; }
+tbody td:nth-child(4) { left: 175px; min-width: 70px; }
+tbody td:nth-child(5) { left: 245px; min-width: 80px; }
+tbody td:nth-child(6) { left: 325px; min-width: 75px; }
+tbody td:nth-child(7) { left: 400px; min-width: 75px; }
+tbody td:nth-child(8) { left: 475px; min-width: 75px; }
+tbody td:nth-child(9) { left: 550px; min-width: 60px; }
+
+tbody tr:hover td:nth-child(-n+9) { background: #f0f4f8; }
+
 tbody td {
   padding: 10px 10px; border-bottom: 1px solid #f1f5f9;
   white-space: nowrap; color: var(--text-primary);
