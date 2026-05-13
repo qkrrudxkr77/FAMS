@@ -331,6 +331,34 @@
 </main>
 
 <script>
+/* ── 가로 스크롤 → 그룹 타이틀 업데이트 ── */
+document.addEventListener('DOMContentLoaded', function () {
+  const tableWrap = document.querySelector('.table-wrap');
+  const tableTitle = document.querySelector('.table-title');
+  if (!tableWrap || !tableTitle) return;
+
+  const groups = [
+    { el: document.querySelector('.group-trip'),      label: '✈ 출장 내용' },
+    { el: document.querySelector('.group-allowance'), label: '💼 직원 경비' },
+    { el: document.querySelector('.group-expense'),   label: '💰 발생 비용' },
+    { el: document.querySelector('.group-meta'),      label: '🏷 부가 정보' },
+  ].filter(g => g.el);
+
+  const STICKY_WIDTH = 610; // 고정 컬럼 9개 합계 너비
+
+  function updateGroupLabel() {
+    const scrollLeft = tableWrap.scrollLeft;
+    let current = groups[0];
+    for (const g of groups) {
+      if (g.el.offsetLeft - STICKY_WIDTH <= scrollLeft) current = g;
+    }
+    tableTitle.innerHTML = '출장 내역 <span style="color:var(--text-muted);font-weight:400;font-size:12px;margin-left:4px">· ' + current.label + '</span>';
+  }
+
+  tableWrap.addEventListener('scroll', updateGroupLabel, { passive: true });
+  updateGroupLabel();
+});
+
 /* ── 사이드바 토글 ── */
 (function() {
   const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
