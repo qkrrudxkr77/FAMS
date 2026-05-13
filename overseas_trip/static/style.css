@@ -321,24 +321,24 @@ tbody td:nth-child(-n+9) {
 }
 thead .col-row th { white-space: nowrap; }
 thead .col-row th:nth-child(1) { left: 0;    min-width: 45px; }
-thead .col-row th:nth-child(2) { left: 45px;  min-width: 80px; }
-thead .col-row th:nth-child(3) { left: 125px; min-width: 50px; }
-thead .col-row th:nth-child(4) { left: 175px; min-width: 70px; }
-thead .col-row th:nth-child(5) { left: 245px; min-width: 80px; }
-thead .col-row th:nth-child(6) { left: 325px; min-width: 75px; }
-thead .col-row th:nth-child(7) { left: 400px; min-width: 120px; width: 120px; }
-thead .col-row th:nth-child(8) { left: 520px; min-width: 120px; width: 120px; }
+thead .col-row th:nth-child(2) { left: 45px;  min-width: 110px; }
+thead .col-row th:nth-child(3) { left: 155px; min-width: 50px; }
+thead .col-row th:nth-child(4) { left: 205px; min-width: 70px; }
+thead .col-row th:nth-child(5) { left: 275px; min-width: 80px; }
+thead .col-row th:nth-child(6) { left: 355px; min-width: 75px; }
+thead .col-row th:nth-child(7) { left: 400px; min-width: 120px; width: 120px; max-width: 120px; }
+thead .col-row th:nth-child(8) { left: 520px; min-width: 120px; width: 120px; max-width: 120px; }
 thead .col-row th:nth-child(9) { left: 640px; min-width:  60px; }
 
 tbody td:nth-child(1) { left: 0;    min-width: 45px; }
-tbody td:nth-child(2) { left: 45px;  min-width: 80px; }
-tbody td:nth-child(3) { left: 125px; min-width: 50px; }
-tbody td:nth-child(4) { left: 175px; min-width: 70px; }
-tbody td:nth-child(5) { left: 245px; min-width: 80px; }
-tbody td:nth-child(6) { left: 325px; min-width: 75px; }
-tbody td:nth-child(7) { left: 400px; min-width: 120px; width: 120px; }
-tbody td:nth-child(8) { left: 520px; min-width: 120px; width: 120px; }
-tbody td:nth-child(9) { left: 640px; min-width:  60px; }
+tbody td:nth-child(2) { left: 45px;  min-width: 110px; }
+tbody td:nth-child(3) { left: 155px; min-width: 50px; }
+tbody td:nth-child(4) { left: 205px; min-width: 70px; }
+tbody td:nth-child(5) { left: 275px; min-width: 80px; }
+tbody td:nth-child(6) { left: 355px; min-width: 75px; }
+tbody td:nth-child(7) { left: 430px; min-width: 120px; width: 120px; max-width: 120px; }
+tbody td:nth-child(8) { left: 550px; min-width: 120px; width: 120px; max-width: 120px; }
+tbody td:nth-child(9) { left: 670px; min-width:  60px; }
 
 tbody tr:hover td:nth-child(-n+9) { background: #f0f4f8; }
 
@@ -356,10 +356,11 @@ tbody tr:hover td:nth-child(-n+9) { background: #f0f4f8; }
 
 /* 숫자 / 날짜 입력 컬럼 최소 너비 */
 .ii[type="number"] { min-width: 90px; }
-.ii[type="date"]   { min-width: 105px; }
+.ii[type="date"]   { min-width: 115px; width: 115px; }
 
 /* 각 컬럼 th / td 최소 너비 */
-thead .col-row th:nth-child(10) { min-width: 480px; }  /* 제목 */
+thead .col-row th:nth-child(2)  { min-width: 110px; }  /* 부서 */
+thead .col-row th:nth-child(10) { min-width: 560px; }  /* 제목 */
 thead .col-row th:nth-child(11) { min-width:  60px; }  /* 출장목적 */
 thead .col-row th:nth-child(12) { min-width: 130px; }  /* 품의서 */
 thead .col-row th:nth-child(13) { min-width: 130px; }  /* 보고서 */
@@ -430,9 +431,16 @@ td.no-cell { color: var(--text-secondary); font-weight: 600; }
   font-size: 11px; font-weight: 600; color: #334155;
 }
 
-.amount-total { color: var(--primary); font-weight: 700; }
+.amount-total { color: var(--text-primary); font-weight: 400; }
 .amount-zero { color: var(--text-muted); }
-.airfare-cell { color: #0e7490; font-weight: 600; }
+/* 항공료: 기본 서식 / 항공+수수료: 강조 */
+.airfare-cell { color: var(--text-primary); font-weight: 400; }
+.air-sum-cell { color: var(--primary); font-weight: 700; font-size: 13px; }
+.total-cell   { color: var(--primary); font-weight: 700; font-size: 13px; }
+
+/* 취소/변경 배지 */
+.badge-modified { background: #fef3c7; color: #92400e; }
+.badge-cancel-empty { color: var(--text-muted); }
 
 .action-btns { display: inline-flex; gap: 4px; }
 

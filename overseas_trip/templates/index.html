@@ -258,7 +258,7 @@
             <td class="center"><input type="date" class="ii" name="start_date" value="{{ row.start_date or '' }}" data-orig="{{ row.start_date or '' }}"></td>
             <td class="center"><input type="date" class="ii" name="end_date" value="{{ row.end_date or '' }}" data-orig="{{ row.end_date or '' }}"></td>
             <td class="center duration-cell">{% if duration %}<span class="badge badge-info">{{ duration }}일</span>{% else %}-{% endif %}</td>
-            <td><input class="ii" name="title" value="{{ row.title or '' }}" data-orig="{{ row.title or '' }}" style="min-width:460px"></td>
+            <td><input class="ii" name="title" value="{{ row.title or '' }}" data-orig="{{ row.title or '' }}" style="min-width:540px"></td>
             <td class="center"><input class="ii" name="trip_purpose" value="{{ row.trip_purpose or '' }}" data-orig="{{ row.trip_purpose or '' }}" style="text-align:center;max-width:60px"></td>
             <td class="center" style="font-size:11px"><input class="ii" name="application_doc_no" value="{{ row.application_doc_no or '' }}" data-orig="{{ row.application_doc_no or '' }}" style="font-size:11px;color:var(--text-secondary)"></td>
             <td class="center" style="font-size:11px"><input class="ii" name="report_doc_no" value="{{ row.report_doc_no or '' }}" data-orig="{{ row.report_doc_no or '' }}" style="font-size:11px"></td>
@@ -291,7 +291,14 @@
                 <option value="퍼스트" {% if row.booking_class == '퍼스트' %}selected{% endif %}>퍼스트</option>
               </select>
             </td>
-            <td class="center"><input class="ii" name="cancel_change" value="{{ row.cancel_change or '' }}" data-orig="{{ row.cancel_change or '' }}" style="text-align:center;cursor:default" readonly tabindex="-1"></td>
+            <td class="center">
+              <input type="hidden" name="cancel_change" class="cancel-hidden" value="{{ row.cancel_change or '' }}" data-orig="{{ row.cancel_change or '' }}">
+              <span class="cancel-badge">
+                {% if row.cancel_change == '취소' %}<span class="badge badge-cancel">취소</span>
+                {% elif row.cancel_change == '수정' %}<span class="badge badge-modified">수정</span>
+                {% else %}<span class="badge-cancel-empty">-</span>{% endif %}
+              </span>
+            </td>
             <td class="center"><input class="ii" name="compliance" value="{{ row.compliance or '' }}" data-orig="{{ row.compliance or '' }}" style="text-align:center"></td>
             <td><input class="ii" name="violation_reason" value="{{ row.violation_reason or '' }}" data-orig="{{ row.violation_reason or '' }}" style="max-width:160px"></td>
             <td><input class="ii" name="memo" value="{{ row.memo or '' }}" data-orig="{{ row.memo or '' }}" style="max-width:160px"></td>
@@ -445,18 +452,26 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputs = tr.querySelectorAll('.ii, .is');
     const saveBtn = tr.querySelector('.save-btn');
 
+    function updateCancelBadge(val) {
+      const wrap = tr.querySelector('.cancel-badge');
+      if (!wrap) return;
+      if (val === '취소') wrap.innerHTML = '<span class="badge badge-cancel">취소</span>';
+      else if (val === '수정') wrap.innerHTML = '<span class="badge badge-modified">수정</span>';
+      else wrap.innerHTML = '<span class="badge-cancel-empty">-</span>';
+    }
+
     inputs.forEach(input => {
-      if (input.name === 'cancel_change') return; // readonly, 직접 편집 불가
       ['input', 'change'].forEach(ev => {
         input.addEventListener(ev, () => {
-          const editableInputs = [...inputs].filter(i => i.name !== 'cancel_change');
-          const changed = editableInputs.some(i => i.value !== i.dataset.orig);
+          const changed = [...inputs].some(i => i.value !== i.dataset.orig);
           saveBtn.style.display = changed ? 'inline-flex' : 'none';
 
-          // 수정 감지 시 cancel_change에 '수정' 자동 입력 (취소 제외)
-          const cancelInput = tr.querySelector('[name="cancel_change"]');
+          // 수정 감지 시 cancel_change hidden에 '수정' 자동 반영 (취소 제외)
+          const cancelInput = tr.querySelector('.cancel-hidden');
           if (cancelInput && cancelInput.dataset.orig !== '취소') {
-            cancelInput.value = changed ? '수정' : (cancelInput.dataset.orig || '');
+            const newVal = changed ? '수정' : (cancelInput.dataset.orig || '');
+            cancelInput.value = newVal;
+            updateCancelBadge(newVal);
           }
 
           // 기간 자동 계산
@@ -489,7 +504,7 @@ document.addEventListener('DOMContentLoaded', function () {
 async function saveRow(rowId) {
   const tr = document.querySelector(`tr[data-id="${rowId}"]`);
   const data = {};
-  tr.querySelectorAll('.ii, .is').forEach(input => {
+  tr.querySelectorAll('.ii, .is, .cancel-hidden').forEach(input => {
     data[input.name] = input.value || null;
   });
   try {
@@ -500,8 +515,7 @@ async function saveRow(rowId) {
     });
     const json = await res.json();
     if (json.success) {
-      // 원본값 업데이트 후 저장 버튼 숨김
-      tr.querySelectorAll('.ii, .is').forEach(i => { i.dataset.orig = i.value; });
+      tr.querySelectorAll('.ii, .is, .cancel-hidden').forEach(i => { i.dataset.orig = i.value; });
       tr.querySelector('.save-btn').style.display = 'none';
     } else {
       alert('저장 실패');
@@ -519,8 +533,10 @@ async function cancelRow(rowId) {
       const tr = document.querySelector(`tr[data-id="${rowId}"]`);
       if (tr) {
         tr.classList.add('row-cancelled');
-        const cancelInput = tr.querySelector('[name="cancel_change"]');
-        if (cancelInput) { cancelInput.value = '취소'; cancelInput.dataset.orig = '취소'; }
+        const cancelHidden = tr.querySelector('.cancel-hidden');
+        if (cancelHidden) { cancelHidden.value = '취소'; cancelHidden.dataset.orig = '취소'; }
+        const wrap = tr.querySelector('.cancel-badge');
+        if (wrap) wrap.innerHTML = '<span class="badge badge-cancel">취소</span>';
       }
     } else alert('취소 실패: ' + (data.message || ''));
   } catch (e) { alert('요청 실패: ' + e); }
