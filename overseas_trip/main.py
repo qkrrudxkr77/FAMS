@@ -213,6 +213,15 @@ def update_row(
     return RedirectResponse("/", status_code=303)
 
 
+@app.patch("/api/row/{row_id}")
+async def patch_row_inline(row_id: int, request: Request, db: Session = Depends(get_db)):
+    """인라인 편집 저장 (JSON PATCH)"""
+    body = await request.json()
+    data = _form_to_dict(body)
+    ok = crud.update_row(db, row_id, data)
+    return JSONResponse({"success": ok})
+
+
 @app.post("/row/{row_id}/cancel")
 def cancel_row(row_id: int, db: Session = Depends(get_db)):
     """취소 버튼: 해외출장보고서 + 취소/변경 컬럼을 '취소'로 업데이트"""

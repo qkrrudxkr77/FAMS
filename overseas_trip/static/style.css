@@ -403,6 +403,40 @@ td.no-cell { color: var(--text-secondary); font-weight: 600; }
 
 .action-btns { display: inline-flex; gap: 4px; }
 
+/* ============== 인라인 편집 ============== */
+.ii {
+  border: none; background: transparent;
+  width: 100%; font-size: 12.5px; font-family: inherit;
+  color: inherit; padding: 2px; outline: none;
+  min-width: 0;
+}
+.ii:focus {
+  background: #eff6ff; border-radius: 4px;
+  outline: 1px solid var(--primary); padding: 2px 4px;
+}
+.ii[type="date"] { cursor: pointer; }
+.ii[type="number"] { text-align: right; }
+
+.is {
+  border: none; background: transparent;
+  font-size: 12.5px; font-family: inherit;
+  color: inherit; padding: 2px; outline: none;
+  cursor: pointer; width: 100%;
+}
+.is:focus {
+  background: #eff6ff; border-radius: 4px;
+  outline: 1px solid var(--primary);
+}
+
+/* 취소된 행: 빨간 글씨 + 취소선 */
+tr.row-cancelled td { color: #dc2626 !important; }
+tr.row-cancelled td .ii,
+tr.row-cancelled td .is,
+tr.row-cancelled td span,
+tr.row-cancelled td { text-decoration: line-through; }
+tr.row-cancelled td .badge,
+tr.row-cancelled td .action-btns { text-decoration: none; }
+
 /* ============== Form ============== */
 .form-card {
   max-width: 1100px; margin: 0 auto;

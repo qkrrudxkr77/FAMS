@@ -248,69 +248,57 @@
           {% set duration = ((row.end_date - row.start_date).days + 1) if (row.start_date and row.end_date) else None %}
           {% set air_sum = (row.airfare or 0) + (row.agency_fee or 0) - (row.refund_amount or 0) %}
           {% set total_sum = air_sum + (row.accommodation or 0) + (row.transportation or 0) + (row.meal_expense or 0) + (row.other_expense or 0) + (row.daily_allowance or 0) + (row.personal_expense or 0) %}
-          <tr>
+          <tr data-id="{{ row.id }}" {% if row.cancel_change == '취소' %}class="row-cancelled"{% endif %}>
             <td class="center no-cell">{{ loop.index }}</td>
-            <td>{{ row.department or '-' }}</td>
-            <td class="center">{{ row.position or '-' }}</td>
-            <td style="font-weight:600">{{ row.name or '-' }}</td>
-            <td>
-              {% if row.country %}<span class="country-flag">🌏 {{ row.country }}</span>{% else %}<span class="muted">-</span>{% endif %}
-            </td>
-            <td>{{ row.region or '-' }}</td>
-            <td class="center">{{ row.start_date or '-' }}</td>
-            <td class="center">{{ row.end_date or '-' }}</td>
-            <td class="center">{% if duration %}<span class="badge badge-info">{{ duration }}일</span>{% else %}-{% endif %}</td>
-            <td title="{{ row.title }}" style="max-width:480px;overflow:hidden;text-overflow:ellipsis">{{ row.title or '-' }}</td>
-            <td class="center">{% if row.trip_purpose %}<span class="badge-purpose">{{ row.trip_purpose }}</span>{% else %}<span class="muted">-</span>{% endif %}</td>
-            <td class="center" style="font-size:11px;color:var(--text-secondary)">{{ row.application_doc_no or '-' }}</td>
-            <td class="center" style="font-size:11px">
-              {% if row.report_doc_no == '취소' %}<span class="badge badge-cancel">취소</span>
-              {% elif row.report_doc_no %}<span style="color:var(--text-secondary)">{{ row.report_doc_no }}</span>
-              {% else %}<span class="muted">-</span>{% endif %}
-            </td>
+            <td><input class="ii" name="department" value="{{ row.department or '' }}" data-orig="{{ row.department or '' }}"></td>
+            <td class="center"><input class="ii" name="position" value="{{ row.position or '' }}" data-orig="{{ row.position or '' }}" style="text-align:center"></td>
+            <td><input class="ii" name="name" value="{{ row.name or '' }}" data-orig="{{ row.name or '' }}" style="font-weight:600"></td>
+            <td><input class="ii" name="country" value="{{ row.country or '' }}" data-orig="{{ row.country or '' }}"></td>
+            <td><input class="ii" name="region" value="{{ row.region or '' }}" data-orig="{{ row.region or '' }}"></td>
+            <td class="center"><input type="date" class="ii" name="start_date" value="{{ row.start_date or '' }}" data-orig="{{ row.start_date or '' }}"></td>
+            <td class="center"><input type="date" class="ii" name="end_date" value="{{ row.end_date or '' }}" data-orig="{{ row.end_date or '' }}"></td>
+            <td class="center duration-cell">{% if duration %}<span class="badge badge-info">{{ duration }}일</span>{% else %}-{% endif %}</td>
+            <td><input class="ii" name="title" value="{{ row.title or '' }}" data-orig="{{ row.title or '' }}" style="min-width:460px"></td>
+            <td class="center"><input class="ii" name="trip_purpose" value="{{ row.trip_purpose or '' }}" data-orig="{{ row.trip_purpose or '' }}" style="text-align:center;max-width:60px"></td>
+            <td class="center" style="font-size:11px"><input class="ii" name="application_doc_no" value="{{ row.application_doc_no or '' }}" data-orig="{{ row.application_doc_no or '' }}" style="font-size:11px;color:var(--text-secondary)"></td>
+            <td class="center" style="font-size:11px"><input class="ii" name="report_doc_no" value="{{ row.report_doc_no or '' }}" data-orig="{{ row.report_doc_no or '' }}" style="font-size:11px"></td>
             <!-- 직원경비 -->
-            <td class="num">{% if row.daily_allowance %}{{ "{:,.0f}".format(row.daily_allowance|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="center">{{ row.report_approval_date or '-' }}</td>
-            <td class="center">{{ row.daily_allowance_date or '-' }}</td>
-            <td class="num">{% if row.personal_expense %}{{ "{:,.0f}".format(row.personal_expense|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num"><input type="number" class="ii" name="daily_allowance" value="{{ row.daily_allowance or '' }}" data-orig="{{ row.daily_allowance or '' }}"></td>
+            <td class="center"><input type="date" class="ii" name="report_approval_date" value="{{ row.report_approval_date or '' }}" data-orig="{{ row.report_approval_date or '' }}"></td>
+            <td class="center"><input type="date" class="ii" name="daily_allowance_date" value="{{ row.daily_allowance_date or '' }}" data-orig="{{ row.daily_allowance_date or '' }}"></td>
+            <td class="num"><input type="number" class="ii" name="personal_expense" value="{{ row.personal_expense or '' }}" data-orig="{{ row.personal_expense or '' }}"></td>
             <!-- 발생비용 -->
-            <td class="num airfare-cell">{% if row.airfare %}{{ "{:,.0f}".format(row.airfare|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="num">{% if row.agency_fee %}{{ "{:,.0f}".format(row.agency_fee|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="num">{% if row.refund_amount %}{{ "{:,.0f}".format(row.refund_amount|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="num">{% if air_sum %}{{ "{:,.0f}".format(air_sum|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="num">{% if row.accommodation %}{{ "{:,.0f}".format(row.accommodation|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="num">{% if row.transportation %}{{ "{:,.0f}".format(row.transportation|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="num">{% if row.meal_expense %}{{ "{:,.0f}".format(row.meal_expense|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="num">{% if row.other_expense %}{{ "{:,.0f}".format(row.other_expense|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
-            <td class="num amount-total">{% if total_sum %}{{ "{:,.0f}".format(total_sum|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num airfare-cell"><input type="number" class="ii" name="airfare" value="{{ row.airfare or '' }}" data-orig="{{ row.airfare or '' }}" style="color:#0e7490;font-weight:600"></td>
+            <td class="num"><input type="number" class="ii" name="agency_fee" value="{{ row.agency_fee or '' }}" data-orig="{{ row.agency_fee or '' }}"></td>
+            <td class="num"><input type="number" class="ii" name="refund_amount" value="{{ row.refund_amount or '' }}" data-orig="{{ row.refund_amount or '' }}"></td>
+            <td class="num air-sum-cell">{% if air_sum %}{{ "{:,.0f}".format(air_sum|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
+            <td class="num"><input type="number" class="ii" name="accommodation" value="{{ row.accommodation or '' }}" data-orig="{{ row.accommodation or '' }}"></td>
+            <td class="num"><input type="number" class="ii" name="transportation" value="{{ row.transportation or '' }}" data-orig="{{ row.transportation or '' }}"></td>
+            <td class="num"><input type="number" class="ii" name="meal_expense" value="{{ row.meal_expense or '' }}" data-orig="{{ row.meal_expense or '' }}"></td>
+            <td class="num"><input type="number" class="ii" name="other_expense" value="{{ row.other_expense or '' }}" data-orig="{{ row.other_expense or '' }}"></td>
+            <td class="num amount-total total-cell">{% if total_sum %}{{ "{:,.0f}".format(total_sum|float) }}{% else %}<span class="amount-zero">-</span>{% endif %}</td>
             <!-- 부가정보 -->
-            <td class="center">{{ row.airfare_payment_date or '-' }}</td>
-            <td class="center" style="font-size:11px">{{ row.payment_card or '-' }}</td>
-            <td class="center" style="font-size:11px">{{ row.purchase_place or '-' }}</td>
-            <td>{{ row.airline or '-' }}</td>
+            <td class="center"><input type="date" class="ii" name="airfare_payment_date" value="{{ row.airfare_payment_date or '' }}" data-orig="{{ row.airfare_payment_date or '' }}"></td>
+            <td class="center"><input class="ii" name="payment_card" value="{{ row.payment_card or '' }}" data-orig="{{ row.payment_card or '' }}" style="font-size:11px"></td>
+            <td class="center"><input class="ii" name="purchase_place" value="{{ row.purchase_place or '' }}" data-orig="{{ row.purchase_place or '' }}" style="font-size:11px"></td>
+            <td><input class="ii" name="airline" value="{{ row.airline or '' }}" data-orig="{{ row.airline or '' }}"></td>
             <td class="center">
-              {% if row.booking_class %}
-                {% set is_biz = '비즈니스' in row.booking_class %}
-                {% set is_first = '퍼스트' in row.booking_class or '일등' in row.booking_class %}
-                <span class="badge badge-class {% if is_biz %}business{% elif is_first %}first{% endif %}">{{ row.booking_class }}</span>
-              {% else %}-{% endif %}
+              <select class="is" name="booking_class" data-orig="{{ row.booking_class or '' }}">
+                <option value="">-</option>
+                <option value="이코노미" {% if row.booking_class == '이코노미' %}selected{% endif %}>이코노미</option>
+                <option value="비즈니스" {% if row.booking_class == '비즈니스' %}selected{% endif %}>비즈니스</option>
+                <option value="이코노미/비즈니스" {% if row.booking_class == '이코노미/비즈니스' %}selected{% endif %}>이코노미/비즈니스</option>
+                <option value="퍼스트" {% if row.booking_class == '퍼스트' %}selected{% endif %}>퍼스트</option>
+              </select>
             </td>
-            <td class="center">
-              {% if row.cancel_change == '취소' %}<span class="badge badge-cancel">취소</span>
-              {% elif row.cancel_change %}{{ row.cancel_change }}
-              {% else %}<span class="muted">-</span>{% endif %}
-            </td>
-            <td class="center">
-              {% if row.compliance == '준수' %}<span class="badge badge-done">준수</span>
-              {% elif row.compliance %}{{ row.compliance }}
-              {% else %}<span class="muted">-</span>{% endif %}
-            </td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis" title="{{ row.violation_reason or '' }}">{{ row.violation_reason or '-' }}</td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis" title="{{ row.memo or '' }}">{{ row.memo or '-' }}</td>
+            <td class="center"><input class="ii" name="cancel_change" value="{{ row.cancel_change or '' }}" data-orig="{{ row.cancel_change or '' }}" style="text-align:center"></td>
+            <td class="center"><input class="ii" name="compliance" value="{{ row.compliance or '' }}" data-orig="{{ row.compliance or '' }}" style="text-align:center"></td>
+            <td><input class="ii" name="violation_reason" value="{{ row.violation_reason or '' }}" data-orig="{{ row.violation_reason or '' }}" style="max-width:160px"></td>
+            <td><input class="ii" name="memo" value="{{ row.memo or '' }}" data-orig="{{ row.memo or '' }}" style="max-width:160px"></td>
             <!-- 작업 -->
             <td class="center">
               <div class="action-btns">
-                <a href="/row/{{ row.id }}/edit" class="btn btn-secondary btn-sm">수정</a>
+                <button class="btn btn-primary btn-sm save-btn" style="display:none" onclick="saveRow({{ row.id }})">저장</button>
                 <button class="btn btn-danger btn-sm" onclick="cancelRow({{ row.id }})">취소</button>
               </div>
             </td>
@@ -442,14 +430,82 @@ function doLogout() {
   location.href = 'https://portal.bodyfriend.co.kr/portal/main/portalMain.do';
 }
 
+/* ── 인라인 편집 ── */
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('tr[data-id]').forEach(tr => {
+    const inputs = tr.querySelectorAll('.ii, .is');
+    const saveBtn = tr.querySelector('.save-btn');
+
+    inputs.forEach(input => {
+      ['input', 'change'].forEach(ev => {
+        input.addEventListener(ev, () => {
+          const changed = [...inputs].some(i => i.value !== i.dataset.orig);
+          saveBtn.style.display = changed ? 'inline-flex' : 'none';
+
+          // 기간 자동 계산
+          const startInput = tr.querySelector('[name="start_date"]');
+          const endInput   = tr.querySelector('[name="end_date"]');
+          const durationCell = tr.querySelector('.duration-cell');
+          if (startInput && endInput && durationCell) {
+            const s = new Date(startInput.value), e = new Date(endInput.value);
+            if (startInput.value && endInput.value && s <= e) {
+              const days = Math.round((e - s) / 86400000) + 1;
+              durationCell.innerHTML = `<span class="badge badge-info">${days}일</span>`;
+            }
+          }
+
+          // 항공+수수료, 합계 자동 계산
+          const n = name => parseFloat(tr.querySelector(`[name="${name}"]`)?.value) || 0;
+          const airSum = n('airfare') + n('agency_fee') - n('refund_amount');
+          const total  = airSum + n('accommodation') + n('transportation') + n('meal_expense') + n('other_expense') + n('daily_allowance') + n('personal_expense');
+          const fmt = v => v ? v.toLocaleString('ko-KR', {maximumFractionDigits:0}) : '<span class="amount-zero">-</span>';
+          const airCell = tr.querySelector('.air-sum-cell');
+          const totalCell = tr.querySelector('.total-cell');
+          if (airCell) airCell.innerHTML = fmt(airSum);
+          if (totalCell) totalCell.innerHTML = fmt(total);
+        });
+      });
+    });
+  });
+});
+
+async function saveRow(rowId) {
+  const tr = document.querySelector(`tr[data-id="${rowId}"]`);
+  const data = {};
+  tr.querySelectorAll('.ii, .is').forEach(input => {
+    data[input.name] = input.value || null;
+  });
+  try {
+    const res = await fetch(`/api/row/${rowId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (json.success) {
+      // 원본값 업데이트 후 저장 버튼 숨김
+      tr.querySelectorAll('.ii, .is').forEach(i => { i.dataset.orig = i.value; });
+      tr.querySelector('.save-btn').style.display = 'none';
+    } else {
+      alert('저장 실패');
+    }
+  } catch (e) { alert('요청 실패: ' + e); }
+}
+
 /* ── 취소 ── */
 async function cancelRow(rowId) {
-  if (!confirm('이 출장 건을 취소 처리하시겠습니까?\n해외출장보고서와 취소/변경 컬럼이 "취소"로 변경됩니다.')) return;
+  if (!confirm('이 출장 건을 취소 처리하시겠습니까?\n취소/변경 컬럼이 "취소"로 변경되며 행이 빨간색으로 표시됩니다.')) return;
   try {
     const res = await fetch(`/row/${rowId}/cancel`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) location.reload();
-    else alert('취소 실패: ' + (data.message || ''));
+    if (data.success) {
+      const tr = document.querySelector(`tr[data-id="${rowId}"]`);
+      if (tr) {
+        tr.classList.add('row-cancelled');
+        const cancelInput = tr.querySelector('[name="cancel_change"]');
+        if (cancelInput) { cancelInput.value = '취소'; cancelInput.dataset.orig = '취소'; }
+      }
+    } else alert('취소 실패: ' + (data.message || ''));
   } catch (e) { alert('요청 실패: ' + e); }
 }
 </script>

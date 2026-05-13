@@ -127,11 +127,10 @@ def update_row(db: Session, row_id: int, data: dict) -> bool:
 
 
 def cancel_row(db: Session, row_id: int) -> bool:
-    """취소 버튼: 해외출장보고서 컬럼과 취소/변경 컬럼을 '취소'로 업데이트"""
+    """취소 버튼: 취소/변경 컬럼만 '취소'로 업데이트 (보고서 번호는 유지)"""
     row = db.query(OverseasTripExpense).filter(OverseasTripExpense.id == row_id).first()
     if not row:
         return False
-    row.report_doc_no = "취소"
     row.cancel_change = "취소"
     db.commit()
     return True
