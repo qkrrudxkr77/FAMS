@@ -83,10 +83,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         엑셀 다운로드
       </button>
-      <a href="/row/new" class="btn btn-primary">
+      <button class="btn btn-primary" onclick="addNewRow()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         신규 등록
-      </a>
+      </button>
     </div>
   </div>
 
@@ -327,6 +327,89 @@
 </main>
 
 <script>
+/* ── 신규 행 추가 ── */
+async function addNewRow() {
+  const table = document.querySelector('tbody');
+  const rows = table.querySelectorAll('tr');
+
+  // 현재 최대 No. 찾기 (tbody 첫 번째 td의 숫자)
+  let maxNo = 0;
+  rows.forEach(row => {
+    const noCell = row.querySelector('td:nth-child(1)');
+    if (noCell) {
+      const no = parseInt(noCell.textContent.trim());
+      if (!isNaN(no)) maxNo = Math.max(maxNo, no);
+    }
+  });
+  const newNo = maxNo + 1;
+
+  // 새 행 HTML 생성
+  const newRow = document.createElement('tr');
+  newRow.dataset.id = '-1'; // 임시 ID
+  newRow.className = 'new-row';
+  newRow.style.backgroundColor = '#fffbea';
+
+  newRow.innerHTML = `
+    <td class="center no-cell"><span class="badge badge-info">${newNo}</span></td>
+    <td><input class="ii" name="department" value="" data-orig=""></td>
+    <td class="center"><input class="ii" name="position" value="" data-orig="" style="text-align:center"></td>
+    <td><input class="ii" name="name" value="" data-orig="" style="font-weight:600"></td>
+    <td><input class="ii" name="country" value="" data-orig=""></td>
+    <td><input class="ii" name="region" value="" data-orig=""></td>
+    <td><input type="date" class="ii" name="start_date" value="" data-orig=""></td>
+    <td><input type="date" class="ii" name="end_date" value="" data-orig=""></td>
+    <td class="center duration-cell">-</td>
+    <td><input class="ii" name="title" value="" data-orig="" style="min-width:540px;width:540px"></td>
+    <td class="center"><input class="ii" name="trip_purpose" value="" data-orig="" style="text-align:center;max-width:60px"></td>
+    <td class="center" style="font-size:11px"><input class="ii" name="application_doc_no" value="" data-orig="" style="font-size:11px;color:var(--text-secondary)"></td>
+    <td class="center" style="font-size:11px"><input class="ii" name="report_doc_no" value="" data-orig="" style="font-size:11px"></td>
+    <td class="center"><input class="ii" name="doc_status" value="" data-orig=""></td>
+    <td><input type="date" class="ii" name="daily_allowance_date" value="" data-orig=""></td>
+    <td class="right"><input type="number" class="ii" name="daily_allowance" value="" data-orig="" step="1"></td>
+    <td class="right"><input type="number" class="ii" name="personal_expense" value="" data-orig="" step="1"></td>
+    <td class="right"><input type="number" class="ii" name="refund_amount" value="" data-orig="" step="1"></td>
+    <td class="right"><input type="number" class="ii" name="accommodation" value="" data-orig="" step="1"></td>
+    <td class="right"><input type="number" class="ii" name="transportation" value="" data-orig="" step="1"></td>
+    <td class="right"><input type="number" class="ii" name="meal_expense" value="" data-orig="" step="1"></td>
+    <td class="right"><input type="number" class="ii" name="other_expense" value="" data-orig="" step="1"></td>
+    <td class="right airfare-cell"><input type="number" class="ii" name="airfare" value="" data-orig="" step="1"></td>
+    <td class="right airfare-cell"><input type="number" class="ii" name="agency_fee" value="" data-orig="" step="1"></td>
+    <td class="right air-sum-cell"><span class="calc-sum">0</span></td>
+    <td class="center"><input type="date" class="ii" name="airfare_payment_date" value="" data-orig=""></td>
+    <td class="center"><input class="ii" name="payment_card" value="" data-orig=""></td>
+    <td class="center"><input class="ii" name="purchase_place" value="" data-orig=""></td>
+    <td><input class="ii" name="airline" value="" data-orig=""></td>
+    <td><select class="is" name="booking_class" data-orig="">
+      <option value="">-</option>
+      <option value="이코노미">이코노미</option>
+      <option value="비즈니스">비즈니스</option>
+      <option value="이코노미/비즈니스">이코노미/비즈니스</option>
+      <option value="퍼스트">퍼스트</option>
+    </select></td>
+    <td class="center">
+      <input type="hidden" name="cancel_change" class="cancel-hidden" value="" data-orig="">
+      <span class="cancel-badge">
+        <span class="badge-cancel-empty">-</span>
+      </span>
+    </td>
+    <td class="center"><input class="ii" name="compliance" value="" data-orig=""></td>
+    <td class="center"><input class="ii" name="violation_reason" value="" data-orig=""></td>
+    <td class="center"><input class="ii" name="memo" value="" data-orig=""></td>
+    <td class="center"><input class="ii" name="ticketing_completed" value="" data-orig=""></td>
+    <td style="text-align:right;">
+      <button class="btn btn-primary btn-sm save-btn" onclick="saveRow(-1)">신규등록</button>
+    </td>
+  `;
+
+  table.insertBefore(newRow, table.firstChild);
+
+  // 이벤트 바인딩
+  bindRowEvents(newRow);
+
+  // 입력 필드 focus
+  newRow.querySelector('input[name="department"]').focus();
+}
+
 /* ── 가로 스크롤 → 그룹 타이틀 업데이트 ── */
 document.addEventListener('DOMContentLoaded', function () {
   const tableWrap = document.querySelector('.table-wrap');
@@ -438,6 +521,62 @@ function doLogout() {
 }
 
 /* ── 인라인 편집 ── */
+/* ── 행 이벤트 바인딩 (초기 + 신규 행) ── */
+function bindRowEvents(tr) {
+  const inputs = tr.querySelectorAll('.ii, .is');
+  const saveBtn = tr.querySelector('.save-btn');
+  if (!saveBtn) return;
+
+  function updateCancelBadge(val) {
+    const wrap = tr.querySelector('.cancel-badge');
+    if (!wrap) return;
+    if (val === '취소') wrap.innerHTML = '<span class="badge badge-cancel">취소</span>';
+    else if (val === '수정') wrap.innerHTML = '<span class="badge badge-modified">수정</span>';
+    else wrap.innerHTML = '<span class="badge-cancel-empty">-</span>';
+  }
+
+  inputs.forEach(input => {
+    ['input', 'change'].forEach(ev => {
+      input.addEventListener(ev, () => {
+        const changed = [...inputs].some(i => i.value !== i.dataset.orig);
+        saveBtn.style.display = changed ? 'inline-flex' : 'none';
+
+        // 수정 감지 시 cancel_change hidden에 '수정' 자동 반영 (취소 제외)
+        const cancelInput = tr.querySelector('.cancel-hidden');
+        if (cancelInput && cancelInput.dataset.orig !== '취소') {
+          const newVal = changed ? '수정' : (cancelInput.dataset.orig || '');
+          cancelInput.value = newVal;
+          updateCancelBadge(newVal);
+        }
+
+        // 기간 자동 계산
+        const startInput = tr.querySelector('[name="start_date"]');
+        const endInput   = tr.querySelector('[name="end_date"]');
+        const durationCell = tr.querySelector('.duration-cell');
+        if (startInput && endInput && durationCell) {
+          const s = new Date(startInput.value), e = new Date(endInput.value);
+          if (startInput.value && endInput.value && s <= e) {
+            const days = Math.round((e - s) / 86400000) + 1;
+            durationCell.innerHTML = `<span class="badge badge-info">${days}일</span>`;
+          } else {
+            durationCell.innerHTML = '-';
+          }
+        }
+
+        // 항공+수수료, 합계 자동 계산
+        const n = name => parseFloat(tr.querySelector(`[name="${name}"]`)?.value) || 0;
+        const airSum = n('airfare') + n('agency_fee') - n('refund_amount');
+        const total  = airSum + n('accommodation') + n('transportation') + n('meal_expense') + n('other_expense') + n('daily_allowance') + n('personal_expense');
+        const fmt = v => v ? v.toLocaleString('ko-KR', {maximumFractionDigits:0}) : '<span class="amount-zero">-</span>';
+        const airCell = tr.querySelector('.air-sum-cell');
+        const totalCell = tr.querySelector('.total-cell');
+        if (airCell) airCell.innerHTML = fmt(airSum);
+        if (totalCell) totalCell.innerHTML = fmt(total);
+      });
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   // number input 소수점 제거 (DB DECIMAL → 정수 표시)
   document.querySelectorAll('input[type="number"].ii').forEach(input => {
@@ -448,56 +587,9 @@ document.addEventListener('DOMContentLoaded', function () {
     input.setAttribute('step', '1');
   });
 
+  // 기존 행들에 이벤트 바인딩
   document.querySelectorAll('tr[data-id]').forEach(tr => {
-    const inputs = tr.querySelectorAll('.ii, .is');
-    const saveBtn = tr.querySelector('.save-btn');
-
-    function updateCancelBadge(val) {
-      const wrap = tr.querySelector('.cancel-badge');
-      if (!wrap) return;
-      if (val === '취소') wrap.innerHTML = '<span class="badge badge-cancel">취소</span>';
-      else if (val === '수정') wrap.innerHTML = '<span class="badge badge-modified">수정</span>';
-      else wrap.innerHTML = '<span class="badge-cancel-empty">-</span>';
-    }
-
-    inputs.forEach(input => {
-      ['input', 'change'].forEach(ev => {
-        input.addEventListener(ev, () => {
-          const changed = [...inputs].some(i => i.value !== i.dataset.orig);
-          saveBtn.style.display = changed ? 'inline-flex' : 'none';
-
-          // 수정 감지 시 cancel_change hidden에 '수정' 자동 반영 (취소 제외)
-          const cancelInput = tr.querySelector('.cancel-hidden');
-          if (cancelInput && cancelInput.dataset.orig !== '취소') {
-            const newVal = changed ? '수정' : (cancelInput.dataset.orig || '');
-            cancelInput.value = newVal;
-            updateCancelBadge(newVal);
-          }
-
-          // 기간 자동 계산
-          const startInput = tr.querySelector('[name="start_date"]');
-          const endInput   = tr.querySelector('[name="end_date"]');
-          const durationCell = tr.querySelector('.duration-cell');
-          if (startInput && endInput && durationCell) {
-            const s = new Date(startInput.value), e = new Date(endInput.value);
-            if (startInput.value && endInput.value && s <= e) {
-              const days = Math.round((e - s) / 86400000) + 1;
-              durationCell.innerHTML = `<span class="badge badge-info">${days}일</span>`;
-            }
-          }
-
-          // 항공+수수료, 합계 자동 계산
-          const n = name => parseFloat(tr.querySelector(`[name="${name}"]`)?.value) || 0;
-          const airSum = n('airfare') + n('agency_fee') - n('refund_amount');
-          const total  = airSum + n('accommodation') + n('transportation') + n('meal_expense') + n('other_expense') + n('daily_allowance') + n('personal_expense');
-          const fmt = v => v ? v.toLocaleString('ko-KR', {maximumFractionDigits:0}) : '<span class="amount-zero">-</span>';
-          const airCell = tr.querySelector('.air-sum-cell');
-          const totalCell = tr.querySelector('.total-cell');
-          if (airCell) airCell.innerHTML = fmt(airSum);
-          if (totalCell) totalCell.innerHTML = fmt(total);
-        });
-      });
-    });
+    bindRowEvents(tr);
   });
 });
 
@@ -507,19 +599,47 @@ async function saveRow(rowId) {
   tr.querySelectorAll('.ii, .is, .cancel-hidden').forEach(input => {
     data[input.name] = input.value || null;
   });
+
   try {
-    const res = await fetch(`/api/row/${rowId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (json.success) {
-      tr.querySelectorAll('.ii, .is, .cancel-hidden').forEach(i => { i.dataset.orig = i.value; });
-      tr.querySelector('.save-btn').style.display = 'none';
+    let res, json, actualId = rowId;
+
+    if (rowId === -1) {
+      // 신규 행: POST /api/row → 실제 ID 받기
+      res = await fetch('/api/row', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      json = await res.json();
+      if (json.success) {
+        actualId = json.id;
+        tr.dataset.id = actualId;
+        tr.classList.remove('new-row');
+        tr.style.backgroundColor = '';
+        const btn = tr.querySelector('.save-btn');
+        btn.textContent = '수정';
+        btn.onclick = () => saveRow(actualId);
+      } else {
+        alert('저장 실패');
+        return;
+      }
     } else {
-      alert('저장 실패');
+      // 기존 행: PATCH /api/row/{id}
+      res = await fetch(`/api/row/${rowId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      json = await res.json();
+      if (!json.success) {
+        alert('저장 실패');
+        return;
+      }
     }
+
+    // 공통 처리
+    tr.querySelectorAll('.ii, .is, .cancel-hidden').forEach(i => { i.dataset.orig = i.value; });
+    tr.querySelector('.save-btn').style.display = 'none';
   } catch (e) { alert('요청 실패: ' + e); }
 }
 

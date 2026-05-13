@@ -114,6 +114,31 @@ def new_row_form(request: Request):
     })
 
 
+@app.post("/api/row")
+async def create_row_json(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """신규 행 추가 (JSON API - 테이블 내 인라인 추가용)"""
+    body = await request.json()
+    data = _form_to_dict(body)
+    row = crud.create_row(db, data)
+    # 모든 컬럼을 dict로 변환 (datetime은 문자열로)
+    from datetime import date, datetime
+    row_dict = {}
+    for col in row.__table__.columns:
+        val = getattr(row, col.name)
+        if isinstance(val, (date, datetime)):
+            row_dict[col.name] = val.isoformat() if val else None
+        else:
+            row_dict[col.name] = val
+    return JSONResponse({
+        "success": True,
+        "id": row.id,
+        "row": row_dict
+    })
+
+
 @app.post("/row/new")
 def create_row(
     request: Request,
