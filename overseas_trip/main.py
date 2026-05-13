@@ -12,8 +12,9 @@ import logging
 import threading
 from contextlib import asynccontextmanager
 from typing import Optional
+from urllib.parse import urlencode
 
-from fastapi import FastAPI, Depends, Form, Request
+from fastapi import FastAPI, Depends, Form, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -23,6 +24,8 @@ from overseas_trip.automation import run_automation
 from overseas_trip.db import get_db, init_db
 from overseas_trip.scheduler import start_scheduler, stop_scheduler
 from overseas_trip import crud
+from overseas_trip.auth import validate_workthrough_token, create_fams_access_token, create_fams_refresh_token, verify_fams_token, get_current_user_email
+import jwt
 
 logging.basicConfig(
     level=logging.INFO,
@@ -74,6 +77,127 @@ app.mount(
     name="static",
 )
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+
+# ─────────────────────────────────────────────
+# 인증 미들웨어 (세션 쿠키 기반)
+# ─────────────────────────────────────────────
+
+_authenticated_users = {}  # email -> token 매핑 (간단한 인메모리 세션)
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """
+    모든 요청에서 인증 확인.
+    - /api/token/login, /static/* 은 인증 불필요
+    - 나머지는 session_token 쿠키 또는 Authorization 헤더 필요
+    """
+    path = request.url.path
+
+    # 인증이 필요 없는 경로
+    if path.startswith("/static/") or path == "/api/token/login":
+        return await call_next(request)
+
+    # 쿠키에서 session_token 추출
+    session_token = request.cookies.get("session_token")
+
+    if not session_token:
+        # Authorization 헤더에서 Bearer 토큰 확인
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+
+    if not session_token:
+        logger.warning(f"Unauthorized access attempt: {path}")
+        return RedirectResponse(url="/api/token/login", status_code=302)
+
+    # 토큰 검증
+    try:
+        payload = verify_fams_token(session_token)
+        request.state.user_email = payload.get("email")
+        request.state.user_name = payload.get("name")
+    except jwt.InvalidTokenError:
+        logger.warning(f"Invalid token: {path}")
+        response = RedirectResponse(url="/api/token/login", status_code=302)
+        response.delete_cookie("session_token")
+        return response
+
+    response = await call_next(request)
+    return response
+
+
+def get_current_user(request: Request) -> str:
+    """
+    현재 인증된 사용자의 이메일 반환.
+    미들웨어에서 검증을 거친 후 호출됨.
+    """
+    user_email = getattr(request.state, "user_email", None)
+    if not user_email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    return user_email
+
+
+# ─────────────────────────────────────────────
+# 인증 라우트
+# ─────────────────────────────────────────────
+
+@app.get("/api/token/login")
+async def token_login(token: str, response: Response):
+    """
+    Workthrough SSO 토큰으로 FAMS 세션 생성.
+
+    흐름:
+    1. Workthrough에서 사용자를 이 URL로 리다이렉트 (token 파라미터 포함)
+    2. 토큰 검증
+    3. session_token 쿠키 설정
+    4. / 으로 리다이렉트
+    """
+    try:
+        # Workthrough 토큰에서 ? 이후 제거 (쿼리 파라미터 정리)
+        if '?' in token:
+            token = token.split('?')[0]
+
+        # Workthrough 토큰 검증
+        wt_payload = validate_workthrough_token(token)
+
+        # FAMS Access Token 생성
+        access_token = create_fams_access_token(email=wt_payload.email)
+
+        # session_token 쿠키 설정 (HttpOnly, Secure는 production에서 추가)
+        response.set_cookie(
+            key="session_token",
+            value=access_token,
+            max_age=24 * 3600,  # 24시간
+            httponly=True,
+            # secure=True,  # HTTPS only (production에서만)
+            samesite="lax"
+        )
+
+        logger.info(f"User logged in: {wt_payload.email}")
+
+        # UI로 리다이렉트
+        return RedirectResponse(url="/", status_code=302)
+
+    except jwt.InvalidTokenError as e:
+        logger.error(f"Token login failed: {e}")
+        return JSONResponse(
+            {"error": "Invalid token"},
+            status_code=status.HTTP_401_UNAUTHORIZED
+        )
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return JSONResponse(
+            {"error": "Login failed"},
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@app.get("/api/logout")
+async def logout(response: Response):
+    """로그아웃 (쿠키 삭제)"""
+    response.delete_cookie("session_token")
+    return RedirectResponse(url="/api/token/login", status_code=302)
 
 
 # ─────────────────────────────────────────────
