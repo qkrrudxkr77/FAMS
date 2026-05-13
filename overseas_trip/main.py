@@ -96,7 +96,7 @@ async def auth_middleware(request: Request, call_next):
     path = request.url.path
 
     # 인증이 필요 없는 경로
-    if path.startswith("/static/") or path == "/api/token/login":
+    if path.startswith("/static/") or path == "/api/token/login" or path == "/favicon.ico":
         return await call_next(request)
 
     # 쿠키에서 session_token 추출
@@ -110,7 +110,10 @@ async def auth_middleware(request: Request, call_next):
 
     if not session_token:
         logger.warning(f"Unauthorized access attempt: {path}")
-        return RedirectResponse(url="/api/token/login", status_code=302)
+        return HTMLResponse(
+            content="<h2>인증이 필요합니다.</h2><p>워크쓰루에서 FAMS 버튼을 통해 접근해주세요.</p>",
+            status_code=401
+        )
 
     # 토큰 검증
     try:
@@ -119,7 +122,10 @@ async def auth_middleware(request: Request, call_next):
         request.state.user_name = payload.get("name")
     except jwt.InvalidTokenError:
         logger.warning(f"Invalid token: {path}")
-        response = RedirectResponse(url="/api/token/login", status_code=302)
+        response = HTMLResponse(
+            content="<h2>세션이 만료되었습니다.</h2><p>워크쓰루에서 FAMS 버튼을 통해 다시 접근해주세요.</p>",
+            status_code=401
+        )
         response.delete_cookie("session_token")
         return response
 
@@ -143,14 +149,14 @@ def get_current_user(request: Request) -> str:
 # ─────────────────────────────────────────────
 
 @app.get("/api/token/login")
-async def token_login(token: str, response: Response):
+async def token_login(token: str):
     """
     Workthrough SSO 토큰으로 FAMS 세션 생성.
 
     흐름:
     1. Workthrough에서 사용자를 이 URL로 리다이렉트 (token 파라미터 포함)
     2. 토큰 검증
-    3. session_token 쿠키 설정
+    3. session_token 쿠키를 RedirectResponse에 직접 설정
     4. / 으로 리다이렉트
     """
     try:
@@ -164,8 +170,9 @@ async def token_login(token: str, response: Response):
         # FAMS Access Token 생성
         access_token = create_fams_access_token(email=wt_payload.email)
 
-        # session_token 쿠키 설정 (HttpOnly, Secure는 production에서 추가)
-        response.set_cookie(
+        # RedirectResponse에 직접 쿠키 설정 (response 파라미터에 설정하면 쿠키가 사라짐)
+        redirect = RedirectResponse(url="/", status_code=302)
+        redirect.set_cookie(
             key="session_token",
             value=access_token,
             max_age=24 * 3600,  # 24시간
@@ -175,29 +182,31 @@ async def token_login(token: str, response: Response):
         )
 
         logger.info(f"User logged in: {wt_payload.email}")
-
-        # UI로 리다이렉트
-        return RedirectResponse(url="/", status_code=302)
+        return redirect
 
     except jwt.InvalidTokenError as e:
         logger.error(f"Token login failed: {e}")
-        return JSONResponse(
-            {"error": "Invalid token"},
-            status_code=status.HTTP_401_UNAUTHORIZED
+        return HTMLResponse(
+            content="<h2>토큰 인증 실패</h2><p>유효하지 않거나 만료된 토큰입니다. 워크쓰루에서 다시 접근해주세요.</p>",
+            status_code=401
         )
     except Exception as e:
         logger.error(f"Login error: {e}")
-        return JSONResponse(
-            {"error": "Login failed"},
-            status_code=status.HTTP_400_BAD_REQUEST
+        return HTMLResponse(
+            content=f"<h2>로그인 오류</h2><p>{str(e)}</p>",
+            status_code=400
         )
 
 
 @app.get("/api/logout")
-async def logout(response: Response):
+async def logout():
     """로그아웃 (쿠키 삭제)"""
+    response = HTMLResponse(
+        content="<h2>로그아웃 완료</h2><p>워크쓰루에서 FAMS 버튼을 통해 다시 접근해주세요.</p>",
+        status_code=200
+    )
     response.delete_cookie("session_token")
-    return RedirectResponse(url="/api/token/login", status_code=302)
+    return response
 
 
 # ─────────────────────────────────────────────
