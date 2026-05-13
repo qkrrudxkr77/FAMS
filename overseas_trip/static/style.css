@@ -348,10 +348,44 @@ tbody tr:hover td:nth-child(-n+9) { background: #f0f4f8; }
   left: 0;
   z-index: 11;
 }
+/* 나머지 4개는 배경 흰색 (파란색 범위 기간 컬럼까지만) */
 .group-trip-rest {
+  background: #fff !important;
   border-left: none !important;
   padding: 0 !important;
 }
+
+/* 숫자 / 날짜 입력 컬럼 최소 너비 */
+.ii[type="number"] { min-width: 90px; }
+.ii[type="date"]   { min-width: 105px; }
+
+/* 각 컬럼 th / td 최소 너비 */
+thead .col-row th:nth-child(10) { min-width: 480px; }  /* 제목 */
+thead .col-row th:nth-child(11) { min-width:  60px; }  /* 출장목적 */
+thead .col-row th:nth-child(12) { min-width: 130px; }  /* 품의서 */
+thead .col-row th:nth-child(13) { min-width: 130px; }  /* 보고서 */
+thead .col-row th:nth-child(14) { min-width:  95px; }  /* 출장일비 */
+thead .col-row th:nth-child(15) { min-width: 115px; }  /* 보고서승인일 */
+thead .col-row th:nth-child(16) { min-width: 115px; }  /* 일비지급일 */
+thead .col-row th:nth-child(17) { min-width:  95px; }  /* 개인경비 */
+thead .col-row th:nth-child(18) { min-width:  95px; }  /* 항공료 */
+thead .col-row th:nth-child(19) { min-width:  95px; }  /* 수수료 */
+thead .col-row th:nth-child(20) { min-width:  80px; }  /* 환불액 */
+thead .col-row th:nth-child(21) { min-width: 100px; }  /* 항공+수수료 */
+thead .col-row th:nth-child(22) { min-width:  90px; }  /* 숙박비 */
+thead .col-row th:nth-child(23) { min-width:  80px; }  /* 교통비 */
+thead .col-row th:nth-child(24) { min-width:  80px; }  /* 식대 */
+thead .col-row th:nth-child(25) { min-width:  90px; }  /* 기타 */
+thead .col-row th:nth-child(26) { min-width: 105px; }  /* 합계 */
+thead .col-row th:nth-child(27) { min-width: 110px; }  /* 항공료결제일 */
+thead .col-row th:nth-child(28) { min-width:  90px; }  /* 결제카드 */
+thead .col-row th:nth-child(29) { min-width:  80px; }  /* 구매처 */
+thead .col-row th:nth-child(30) { min-width: 110px; }  /* 항공사 */
+thead .col-row th:nth-child(31) { min-width: 120px; }  /* 예약등급 */
+thead .col-row th:nth-child(32) { min-width:  80px; }  /* 취소/변경 */
+thead .col-row th:nth-child(33) { min-width:  70px; }  /* 규정 */
+thead .col-row th:nth-child(34) { min-width: 140px; }  /* 규정위반사유 */
+thead .col-row th:nth-child(35) { min-width: 140px; }  /* 비고 */
 
 tbody td {
   padding: 10px 10px; border-bottom: 1px solid #f1f5f9;

@@ -195,7 +195,7 @@
           <!-- Group header row -->
           <tr class="group-row">
             <th colspan="9" class="group-trip group-trip-sticky">✈ 출장 내용</th>
-            <th colspan="4" class="group-trip group-trip-rest"></th>
+            <th colspan="4" class="group-trip-rest"></th>
             <th colspan="4" class="group-allowance">💼 직원 경비</th>
             <th colspan="9" class="group-expense">💰 발생 비용</th>
             <th colspan="9" class="group-meta">🏷 부가 정보</th>
@@ -432,6 +432,15 @@ function doLogout() {
 
 /* ── 인라인 편집 ── */
 document.addEventListener('DOMContentLoaded', function () {
+  // number input 소수점 제거 (DB DECIMAL → 정수 표시)
+  document.querySelectorAll('input[type="number"].ii').forEach(input => {
+    if (input.value !== '') {
+      input.value = Math.round(parseFloat(input.value));
+      input.dataset.orig = input.value;
+    }
+    input.setAttribute('step', '1');
+  });
+
   document.querySelectorAll('tr[data-id]').forEach(tr => {
     const inputs = tr.querySelectorAll('.ii, .is');
     const saveBtn = tr.querySelector('.save-btn');
