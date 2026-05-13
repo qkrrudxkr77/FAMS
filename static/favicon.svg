@@ -1,0 +1,13 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#1e40af">
+  <!-- 건물 베이스 -->
+  <path d="M12 2L2 8v2h1v10H2v2h20v-2h-1V10h1V8L12 2z" fill="#1e40af"/>
+  <!-- 건물 구조 -->
+  <path d="M5 10v8h2v-3h6v3h2V10H5z" fill="white" opacity="0.2"/>
+  <!-- 창문들 -->
+  <rect x="6" y="11" width="1.5" height="1.5" fill="white" opacity="0.8"/>
+  <rect x="9" y="11" width="1.5" height="1.5" fill="white" opacity="0.8"/>
+  <rect x="12" y="11" width="1.5" height="1.5" fill="white" opacity="0.8"/>
+  <rect x="6" y="14" width="1.5" height="1.5" fill="white" opacity="0.8"/>
+  <rect x="9" y="14" width="1.5" height="1.5" fill="white" opacity="0.8"/>
+  <rect x="12" y="14" width="1.5" height="1.5" fill="white" opacity="0.8"/>
+</svg>
