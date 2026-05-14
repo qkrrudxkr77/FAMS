@@ -521,7 +521,8 @@ function setDone(ok, msg) {
 }
 
 /* ── 로그아웃 ── */
-function doLogout() {
+async function doLogout() {
+  try { await fetch('/api/logout', { credentials: 'include' }); } catch (_) {}
   localStorage.clear();
   sessionStorage.clear();
   document.cookie.split(';').forEach(c => {

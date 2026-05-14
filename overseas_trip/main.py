@@ -33,6 +33,87 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def _unauthorized_html(title: str, message: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>인증 필요 — FAMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: 'Noto Sans KR', -apple-system, sans-serif;
+      background: #0f1729;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }}
+    .card {{
+      background: #ffffff;
+      width: 400px;
+      padding: 48px 52px;
+      text-align: center;
+    }}
+    .icon-wrap {{
+      width: 56px;
+      height: 56px;
+      background: #eef4ff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }}
+    .accent {{
+      width: 36px;
+      height: 3px;
+      background: #1c69d4;
+      margin: 0 auto 28px;
+    }}
+    h1 {{
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }}
+    p {{
+      font-size: 14px;
+      font-weight: 300;
+      color: #6b6b6b;
+      line-height: 1.6;
+    }}
+    .badge {{
+      display: inline-block;
+      margin-top: 32px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #9a9a9a;
+    }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrap">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1c69d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <div class="accent"></div>
+    <h1>{title}</h1>
+    <p>{message}</p>
+    <div class="badge">FAMS · 재무회계관리시스템</div>
+  </div>
+</body>
+</html>"""
+
 import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -110,10 +191,7 @@ async def auth_middleware(request: Request, call_next):
 
     if not session_token:
         logger.warning(f"Unauthorized access attempt: {path}")
-        return HTMLResponse(
-            content="<h2>인증이 필요합니다.</h2><p>워크쓰루에서 FAMS 버튼을 통해 접근해주세요.</p>",
-            status_code=401
-        )
+        return HTMLResponse(content=_unauthorized_html("인증이 필요합니다", "워크쓰루에서 FAMS 버튼을 통해 접근해주세요."), status_code=401)
 
     # 토큰 검증
     try:
@@ -122,10 +200,7 @@ async def auth_middleware(request: Request, call_next):
         request.state.user_name = payload.get("name")
     except jwt.InvalidTokenError:
         logger.warning(f"Invalid token: {path}")
-        response = HTMLResponse(
-            content="<h2>세션이 만료되었습니다.</h2><p>워크쓰루에서 FAMS 버튼을 통해 다시 접근해주세요.</p>",
-            status_code=401
-        )
+        response = HTMLResponse(content=_unauthorized_html("세션이 만료되었습니다", "워크쓰루에서 FAMS 버튼을 통해 다시 접근해주세요."), status_code=401)
         response.delete_cookie("session_token")
         return response
 
@@ -176,7 +251,7 @@ async def token_login(token: str):
             key="session_token",
             value=access_token,
             max_age=24 * 3600,  # 24시간
-            httponly=True,
+            httponly=False,
             # secure=True,  # HTTPS only (production에서만)
             samesite="lax"
         )
