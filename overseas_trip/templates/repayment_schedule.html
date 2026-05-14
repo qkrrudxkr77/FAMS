@@ -73,6 +73,7 @@
       display:inline-block; font-size:10px; font-weight:700; padding:2px 6px;
       background:var(--danger); color:#fff; border-radius:10px; align-self:flex-start;
     }
+    .cell-count.receipt { background:var(--success); }
     .cell-total { font-size:10px; color:var(--text-secondary); font-weight:500; }
 
     /* 사이드 패널 */
@@ -241,14 +242,18 @@
   </ul>
   <div class="sidebar-user">
     <div class="user-avatar">
-      <span id="userPhotoFallback" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;">박</span>
+      <span id="userPhotoFallback" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;">{{ (current_user.name or current_user.email)[0] }}</span>
       <img src="/api/user-photo" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;"
         onload="if(this.naturalWidth>0){this.style.display='block';document.getElementById('userPhotoFallback').style.display='none';}"
         onerror="this.style.display='none';">
     </div>
     <div class="user-info">
-      <div class="user-name">박병훈 부장 <span style="color:#94a3b8;font-weight:400;font-size:11px">HR팀</span></div>
-      <div class="user-meta">marinhoon@bodyfriend.co.kr</div>
+      <div class="user-name">
+        {{ current_user.name or current_user.email.split('@')[0] }}
+        {% if current_user.position %} {{ current_user.position }}{% endif %}
+        {% if current_user.dept %}<span style="color:#94a3b8;font-weight:400;font-size:11px"> {{ current_user.dept }}</span>{% endif %}
+      </div>
+      <div class="user-meta">{{ current_user.email }}</div>
     </div>
   </div>
   <div class="sidebar-logout">
@@ -271,8 +276,8 @@
     </h1>
     <div class="page-actions">
       <div class="view-toggle" id="viewToggle">
-        <button data-view="list" class="active">목록형</button>
-        <button data-view="calendar">캘린더형</button>
+        <button data-view="calendar" class="active">캘린더형</button>
+        <button data-view="list">목록형</button>
       </div>
       <label class="btn btn-secondary" style="cursor:pointer; margin-left:8px;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -283,7 +288,7 @@
   </div>
 
   <!-- ============= 캘린더 뷰 ============= -->
-  <div id="calendarView" style="display:none;">
+  <div id="calendarView">
     <div class="calendar-wrap">
       <div class="calendar-card">
         <div class="calendar-header">
@@ -320,7 +325,7 @@
   </div>
 
   <!-- ============= 목록 뷰 ============= -->
-  <div id="listView">
+  <div id="listView" style="display:none;">
     <div class="list-scroll-wrap" id="listScrollWrap">
       <div id="listSections"></div>
     </div>
@@ -333,7 +338,8 @@ const TODAY = new Date({{ today_year }}, {{ today_month - 1 }}, 1);
 let currentYear = TODAY.getFullYear();
 let currentMonth = TODAY.getMonth() + 1; // 1-12
 let selectedDateKey = null;
-let calendarData = {}; // {dateKey: [items]}
+let calendarData = {};        // {dateKey: [repayment items]}
+let calendarReceiptData = {}; // {dateKey: [receipt items]}
 
 const fmt = (n) => n == null ? '-' : Number(n).toLocaleString('ko-KR');
 const pad = (n) => String(n).padStart(2, '0');
@@ -354,9 +360,14 @@ document.querySelectorAll('#viewToggle button').forEach(btn => {
 
 /* ── 캘린더 렌더 ── */
 async function loadCalendar() {
-  const res = await fetch(`/api/repayment-schedule/calendar?year=${currentYear}&month=${currentMonth}`);
-  const json = await res.json();
-  calendarData = json.by_date || {};
+  const [repRes, recRes] = await Promise.all([
+    fetch(`/api/repayment-schedule/calendar?year=${currentYear}&month=${currentMonth}`),
+    fetch(`/api/financial-product/calendar?year=${currentYear}&month=${currentMonth}`),
+  ]);
+  const repJson = await repRes.json();
+  const recJson = await recRes.json();
+  calendarData = repJson.by_date || {};
+  calendarReceiptData = recJson.by_date || {};
   renderCalendar();
 }
 
@@ -391,18 +402,23 @@ function renderCalendar() {
     cell.className = 'calendar-cell';
     if (key === todayKey) cell.classList.add('today');
     if (key === selectedDateKey) cell.classList.add('selected');
-    if (items.length) cell.classList.add('has-items');
+    if (items.length || (calendarReceiptData[key] || []).length) cell.classList.add('has-items');
 
     const wd = new Date(currentYear, currentMonth - 1, d).getDay();
     const dateClass = wd === 0 ? 'sun' : (wd === 6 ? 'sat' : '');
 
+    const receiptItems = calendarReceiptData[key] || [];
     const total = items.reduce((s, it) => s + (it.total_payment || 0), 0);
+    const recTotal = receiptItems.reduce((s, it) => s + (it.amount || 0), 0);
+    const hasAny = items.length || receiptItems.length;
     cell.innerHTML = `
       <div class="cell-date ${dateClass}">${d}</div>
-      ${items.length ? `
+      ${hasAny ? `
         <div class="cell-summary">
-          <span class="cell-count">${items.length}건</span>
-          <span class="cell-total">${fmt(total)}</span>
+          ${items.length ? `<span class="cell-count">${items.length}건</span>` : ''}
+          ${items.length ? `<span class="cell-total">${fmt(total)}</span>` : ''}
+          ${receiptItems.length ? `<span class="cell-count receipt">${receiptItems.length}건</span>` : ''}
+          ${receiptItems.length ? `<span class="cell-total" style="color:var(--success)">${fmt(recTotal)}</span>` : ''}
         </div>
       ` : ''}
     `;
@@ -436,30 +452,53 @@ function renderDayPanel() {
     return;
   }
   const items = calendarData[selectedDateKey] || [];
+  const receiptItems = calendarReceiptData[selectedDateKey] || [];
   const [y, m, d] = selectedDateKey.split('-');
   header.textContent = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
 
-  if (!items.length) {
-    body.innerHTML = '<div class="day-panel-empty">해당 일자의 상환 항목이 없습니다.</div>';
+  if (!items.length && !receiptItems.length) {
+    body.innerHTML = '<div class="day-panel-empty">해당 일자의 항목이 없습니다.</div>';
     return;
   }
 
-  const total = items.reduce((s, it) => s + (it.total_payment || 0), 0);
-  let html = `
-    <div class="day-section-label spend">지출 −</div>
-    <div class="day-total-amount spend">${fmt(total)} 원</div>
-  `;
-  for (const it of items) {
+  let html = '';
+
+  if (items.length) {
+    const total = items.reduce((s, it) => s + (it.total_payment || 0), 0);
     html += `
-      <div class="day-item">
-        <div class="day-item-loan">${it.loan_name} <span style="color:var(--text-secondary);font-weight:400;">· ${it.installment_no}회차</span></div>
-        <div class="day-item-row"><span>원금</span><b>${fmt(it.principal)}</b></div>
-        <div class="day-item-row"><span>이자</span><b>${fmt(it.interest)}</b></div>
-        <div class="day-item-row"><span>원리금</span><b>${fmt(it.total_payment)}</b></div>
-        <div class="day-item-row"><span>미회수 원금</span><b>${fmt(it.remaining_principal)}</b></div>
-      </div>
+      <div class="day-section-label spend">상환 −</div>
+      <div class="day-total-amount spend">${fmt(total)} 원</div>
     `;
+    for (const it of items) {
+      html += `
+        <div class="day-item">
+          <div class="day-item-loan">${it.loan_name} <span style="color:var(--text-secondary);font-weight:400;">· ${it.installment_no}회차</span></div>
+          <div class="day-item-row"><span>원금</span><b>${fmt(it.principal)}</b></div>
+          <div class="day-item-row"><span>이자</span><b>${fmt(it.interest)}</b></div>
+          <div class="day-item-row"><span>원리금</span><b>${fmt(it.total_payment)}</b></div>
+          <div class="day-item-row"><span>미회수 원금</span><b>${fmt(it.remaining_principal)}</b></div>
+        </div>
+      `;
+    }
   }
+
+  if (receiptItems.length) {
+    const recTotal = receiptItems.reduce((s, it) => s + (it.amount || 0), 0);
+    html += `
+      <div class="day-section-label" style="color:var(--success);margin-top:${items.length ? '20px' : '0'}">수령 +</div>
+      <div class="day-total-amount" style="color:var(--success)">${fmt(recTotal)} 원</div>
+    `;
+    for (const it of receiptItems) {
+      const label = `${it.company_name} ${it.product_name} 금융상품`;
+      html += `
+        <div class="day-item" style="border-left-color:var(--success)">
+          <div class="day-item-loan" style="color:var(--success)">${label}</div>
+          <div class="day-item-row"><span>당일잔액</span><b>${fmt(it.amount)} 원</b></div>
+        </div>
+      `;
+    }
+  }
+
   body.innerHTML = html;
 }
 
@@ -582,15 +621,12 @@ async function loadListGrouped() {
         </div>
         <div class="list-items-wrap">`;
       for (const it of receiptItems) {
+        const label = `${it.company_name} ${it.product_name} 금융상품`;
         html += `
           <div class="list-item receipt">
             <div class="list-item-header">
-              <span class="list-item-name receipt">${it.product_name}</span>
+              <span class="list-item-name" style="color:var(--success);">${label}</span>
               <span class="list-item-total" style="color:var(--success);">${fmt(it.amount)} 원</span>
-            </div>
-            <div class="list-item-grid">
-              <div><div class="list-item-field">회사</div><div class="list-item-value">${it.company_name}</div></div>
-              <div><div class="list-item-field">코드</div><div class="list-item-value">${it.product_code}</div></div>
             </div>
           </div>`;
       }
@@ -638,6 +674,7 @@ document.getElementById('uploadFile').onchange = async (e) => {
   }
 };
 
+
 function showToast(msg, type) {
   const existing = document.querySelector('.toast');
   if (existing) existing.remove();
@@ -674,7 +711,7 @@ async function doLogout() {
 }
 
 /* ── 초기 로드 ── */
-loadListGrouped();
+loadCalendar();
 </script>
 </body>
 </html>

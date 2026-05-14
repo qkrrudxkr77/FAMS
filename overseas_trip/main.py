@@ -587,6 +587,13 @@ def repayment_schedule_page(request: Request, db: Session = Depends(get_db)):
         "today_year": today.year,
         "today_month": today.month,
         "loan_names": loan_names,
+        "current_user": {
+            "email": getattr(request.state, "user_email", ""),
+            "name": getattr(request.state, "user_name", ""),
+            "dept": getattr(request.state, "user_dept", ""),
+            "position": getattr(request.state, "user_position", ""),
+            "level": getattr(request.state, "user_level", ""),
+        },
     })
 
 
