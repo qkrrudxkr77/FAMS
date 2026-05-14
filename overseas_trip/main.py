@@ -612,6 +612,76 @@ def calendar_repayment_schedule(year: int, month: int, db: Session = Depends(get
 
 
 # ─────────────────────────────────────────────
+# 금융상품 만기상환 (2차)
+# ─────────────────────────────────────────────
+
+def _financial_product_to_dict(row) -> dict:
+    """금융상품 ORM → API 응답 dict"""
+    return {
+        "id": row.id,
+        "product_code": row.product_code,
+        "company_name": row.company_name,
+        "product_name": row.product_name,
+        "amount": float(row.amount) if row.amount is not None else None,
+        "original_maturity_date": row.original_maturity_date.isoformat() if row.original_maturity_date else None,
+        "adjusted_maturity_date": row.adjusted_maturity_date.isoformat() if row.adjusted_maturity_date else None,
+    }
+
+
+@app.post("/api/financial-product/sync")
+async def sync_financial_products(db: Session = Depends(get_db)):
+    """웹 캐시 대시보드 크롤링 → 금융상품 데이터 동기화"""
+    try:
+        from overseas_trip.web_crawler import crawl_financial_products
+        logger.info("금융상품 크롤링 시작...")
+        products = await crawl_financial_products()
+        if not products:
+            return JSONResponse({"success": False, "message": "크롤링 결과가 없습니다."}, status_code=400)
+        count = crud.replace_all_financial_products(db, products)
+        logger.info(f"금융상품 동기화 완료: {count}건")
+        return JSONResponse({"success": True, "inserted_count": count})
+    except Exception as e:
+        logger.exception("금융상품 동기화 실패")
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
+@app.get("/api/financial-product")
+def list_financial_products(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    company_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """금융상품 목록 조회 (기간/회사명 필터)"""
+    def _parse_date(s: Optional[str]) -> Optional[date]:
+        if not s:
+            return None
+        try:
+            return dt.strptime(s, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    rows = crud.list_financial_products(
+        db,
+        from_date=_parse_date(from_date),
+        to_date=_parse_date(to_date),
+        company_name=company_name or None,
+    )
+    return JSONResponse({"success": True, "items": [_financial_product_to_dict(r) for r in rows]})
+
+
+@app.get("/api/financial-product/calendar")
+def calendar_financial_products(year: int, month: int, db: Session = Depends(get_db)):
+    """캘린더 뷰용: 날짜별 그룹 JSON"""
+    rows = crud.get_financial_products_by_month(db, year, month)
+    by_date: dict[str, list[dict]] = {}
+    for r in rows:
+        key = r.adjusted_maturity_date.isoformat()
+        by_date.setdefault(key, []).append(_financial_product_to_dict(r))
+    return JSONResponse({"success": True, "year": year, "month": month, "by_date": by_date})
+
+
+# ─────────────────────────────────────────────
 # 헬퍼
 # ─────────────────────────────────────────────
 

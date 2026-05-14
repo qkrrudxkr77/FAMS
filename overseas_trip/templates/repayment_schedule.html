@@ -178,6 +178,15 @@
     .list-item-field { font-size: 11px; color: var(--text-secondary); }
     .list-item-value { font-size: 12px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
+    /* 상환/수령 섹션 분리 */
+    .list-section-group { margin-bottom: 8px; }
+    .list-date-label.spend { color: var(--danger); }
+    .list-date-label.receipt { color: var(--success); }
+    .list-date-total.spend { color: var(--danger); }
+    .list-date-total.receipt { color: var(--success); }
+    .list-item.receipt { border-left-color: var(--success); }
+    .list-item-loan.receipt { color: var(--success); }
+
     .list-empty-state { text-align:center; padding:80px 20px; color:var(--text-secondary); }
     .list-empty-state svg { margin:0 auto 16px; display:block; }
     .list-empty-state h3 { font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:8px; }
@@ -481,26 +490,38 @@ async function loadListGrouped() {
   const container = document.getElementById('listSections');
   container.innerHTML = '<div style="text-align:center;padding:60px 0;color:var(--text-secondary);font-size:13px;">불러오는 중...</div>';
 
-  const res = await fetch('/api/repayment-schedule');
-  const json = await res.json();
-  const items = json.items || [];
+  // 상환 + 수령 두 API 병렬 호출
+  const [repRes, recRes] = await Promise.all([
+    fetch('/api/repayment-schedule'),
+    fetch('/api/financial-product'),
+  ]);
+  const repJson = await repRes.json();
+  const recJson = await recRes.json();
+  const repayments = repJson.items || [];
+  const receipts = recJson.items || [];
 
-  if (!items.length) {
+  if (!repayments.length && !receipts.length) {
     container.innerHTML = `<div class="list-empty-state">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
       <h3>데이터가 없습니다</h3>
-      <p>엑셀을 업로드해 주세요.</p>
+      <p>엑셀을 업로드하거나 금융상품을 동기화해 주세요.</p>
     </div>`;
     return;
   }
 
-  // 날짜별 그룹
+  // 날짜별 그룹 (상환 + 수령 동시)
   const groups = {};
-  for (const it of items) {
+  for (const it of repayments) {
     const k = it.adjusted_due_date || it.original_due_date;
     if (!k) continue;
-    if (!groups[k]) groups[k] = [];
-    groups[k].push(it);
+    if (!groups[k]) groups[k] = { repayment: [], receipt: [] };
+    groups[k].repayment.push(it);
+  }
+  for (const it of receipts) {
+    const k = it.adjusted_maturity_date || it.original_maturity_date;
+    if (!k) continue;
+    if (!groups[k]) groups[k] = { repayment: [], receipt: [] };
+    groups[k].receipt.push(it);
   }
   const sortedKeys = Object.keys(groups).sort();
 
@@ -509,51 +530,74 @@ async function loadListGrouped() {
 
   let html = '';
   for (const k of sortedKeys) {
-    const its = groups[k];
+    const repaymentItems = groups[k].repayment;
+    const receiptItems = groups[k].receipt;
     const [y, m, d] = k.split('-');
     const label = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
-    const total = its.reduce((s, it) => s + (it.total_payment || 0), 0);
     const isToday = k === todayKey;
 
     html += `<div class="list-date-section" id="list-date-${k}">
       <div class="list-date-heading">
         <span>${label}${isToday ? ' <span class="list-date-today-badge">오늘</span>' : ''}</span>
-        <div class="list-date-meta">
-          <span class="list-date-label">지출 −</span>
-          <span class="list-date-total">${fmt(total)} 원</span>
-        </div>
-      </div>
-      <div class="list-items-wrap">`;
+      </div>`;
 
-    for (const it of its) {
-      html += `
-        <div class="list-item">
-          <div class="list-item-header">
-            <span class="list-item-name">${it.loan_name} <span class="list-item-inst">· ${it.installment_no}회차</span></span>
-            <span class="list-item-total">${fmt(it.total_payment)} 원</span>
+    // 상환 섹션
+    if (repaymentItems.length) {
+      const repTotal = repaymentItems.reduce((s, it) => s + (it.total_payment || 0), 0);
+      html += `<div class="list-section-group">
+        <div style="padding:10px 20px; background:#f8fafc; border:1px solid var(--border); border-top:none;">
+          <div style="display:flex; align-items:center; justify-content:flex-start; gap:12px;">
+            <span class="list-date-label spend">상환 −</span>
+            <span class="list-date-total spend">${fmt(repTotal)} 원</span>
           </div>
-          <div class="list-item-grid">
-            <div>
-              <div class="list-item-field">원금</div>
-              <div class="list-item-value">${fmt(it.principal)}</div>
+        </div>
+        <div class="list-items-wrap">`;
+      for (const it of repaymentItems) {
+        html += `
+          <div class="list-item">
+            <div class="list-item-header">
+              <span class="list-item-name">${it.loan_name} <span class="list-item-inst">· ${it.installment_no}회차</span></span>
+              <span class="list-item-total">${fmt(it.total_payment)} 원</span>
             </div>
-            <div>
-              <div class="list-item-field">이자</div>
-              <div class="list-item-value">${fmt(it.interest)}</div>
+            <div class="list-item-grid">
+              <div><div class="list-item-field">원금</div><div class="list-item-value">${fmt(it.principal)}</div></div>
+              <div><div class="list-item-field">이자</div><div class="list-item-value">${fmt(it.interest)}</div></div>
+              <div><div class="list-item-field">원리금</div><div class="list-item-value">${fmt(it.total_payment)}</div></div>
+              <div><div class="list-item-field">미회수</div><div class="list-item-value">${fmt(it.remaining_principal)}</div></div>
             </div>
-            <div>
-              <div class="list-item-field">원리금</div>
-              <div class="list-item-value">${fmt(it.total_payment)}</div>
-            </div>
-            <div>
-              <div class="list-item-field">미회수 원금</div>
-              <div class="list-item-value">${fmt(it.remaining_principal)}</div>
-            </div>
-          </div>
-        </div>`;
+          </div>`;
+      }
+      html += `</div></div>`;
     }
 
-    html += `</div></div>`;
+    // 수령 섹션
+    if (receiptItems.length) {
+      const recTotal = receiptItems.reduce((s, it) => s + (it.amount || 0), 0);
+      html += `<div class="list-section-group">
+        <div style="padding:10px 20px; background:#f0fdf4; border:1px solid var(--border); border-top:none;">
+          <div style="display:flex; align-items:center; justify-content:flex-start; gap:12px;">
+            <span class="list-date-label receipt">수령 +</span>
+            <span class="list-date-total receipt">${fmt(recTotal)} 원</span>
+          </div>
+        </div>
+        <div class="list-items-wrap">`;
+      for (const it of receiptItems) {
+        html += `
+          <div class="list-item receipt">
+            <div class="list-item-header">
+              <span class="list-item-name receipt">${it.product_name}</span>
+              <span class="list-item-total" style="color:var(--success);">${fmt(it.amount)} 원</span>
+            </div>
+            <div class="list-item-grid">
+              <div><div class="list-item-field">회사</div><div class="list-item-value">${it.company_name}</div></div>
+              <div><div class="list-item-field">코드</div><div class="list-item-value">${it.product_code}</div></div>
+            </div>
+          </div>`;
+      }
+      html += `</div></div>`;
+    }
+
+    html += `</div>`;
   }
 
   container.innerHTML = html;

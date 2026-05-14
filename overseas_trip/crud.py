@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 from sqlalchemy.orm import Session
-from overseas_trip.models import OverseasTripExpense, LoanRepayment
+from overseas_trip.models import OverseasTripExpense, LoanRepayment, FinancialProduct
 from overseas_trip.holiday_util import next_business_day
 
 
@@ -206,4 +206,72 @@ def get_loan_repayments_by_month(db: Session, year: int, month: int) -> list[Loa
 def get_distinct_loan_names(db: Session) -> list[str]:
     """필터 드롭다운용: distinct 대출명 (사전순)"""
     rows = db.query(LoanRepayment.loan_name).distinct().order_by(LoanRepayment.loan_name.asc()).all()
+    return [r[0] for r in rows]
+
+
+# ─────────────────────────────────────────────
+# 금융상품 만기상환 (financial_product)
+# ─────────────────────────────────────────────
+
+def replace_all_financial_products(db: Session, rows: list[dict]) -> int:
+    """
+    금융상품 전체 교체: 기존 데이터 모두 삭제 후 새 행 일괄 INSERT.
+    rows[i]에 original_maturity_date가 있으면 adjusted_maturity_date를 계산해 함께 저장.
+    """
+    db.query(FinancialProduct).delete()
+    objects = []
+    for r in rows:
+        orig = r["original_maturity_date"]
+        adjusted = next_business_day(orig)
+        objects.append(FinancialProduct(
+            product_code=r["product_code"],
+            company_name=r["company_name"],
+            product_name=r["product_name"],
+            amount=r["amount"],
+            original_maturity_date=orig,
+            adjusted_maturity_date=adjusted,
+            is_active=1,
+        ))
+    db.bulk_save_objects(objects)
+    db.commit()
+    return len(objects)
+
+
+def list_financial_products(
+    db: Session,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    company_name: Optional[str] = None,
+) -> list[FinancialProduct]:
+    """기간/회사명 필터로 금융상품 조회 (adjusted_maturity_date 기준)"""
+    q = db.query(FinancialProduct).filter(FinancialProduct.is_active == 1)
+    if from_date:
+        q = q.filter(FinancialProduct.adjusted_maturity_date >= from_date)
+    if to_date:
+        q = q.filter(FinancialProduct.adjusted_maturity_date <= to_date)
+    if company_name:
+        q = q.filter(FinancialProduct.company_name == company_name)
+    return q.order_by(
+        FinancialProduct.adjusted_maturity_date.asc(),
+        FinancialProduct.company_name.asc(),
+        FinancialProduct.product_name.asc(),
+    ).all()
+
+
+def get_financial_products_by_month(db: Session, year: int, month: int) -> list[FinancialProduct]:
+    """캘린더용: 해당 월의 adjusted_maturity_date 기반 전체 항목"""
+    from calendar import monthrange
+    last_day = monthrange(year, month)[1]
+    return list_financial_products(
+        db,
+        from_date=date(year, month, 1),
+        to_date=date(year, month, last_day),
+    )
+
+
+def get_distinct_company_names(db: Session) -> list[str]:
+    """필터 드롭다운용: distinct 회사명 (사전순)"""
+    rows = db.query(FinancialProduct.company_name).distinct().filter(
+        FinancialProduct.is_active == 1
+    ).order_by(FinancialProduct.company_name.asc()).all()
     return [r[0] for r in rows]

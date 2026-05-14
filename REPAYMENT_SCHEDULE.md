@@ -548,10 +548,261 @@ def _to_date(v):
 
 ---
 
-## 향후 개선 (2차 이후)
+## 금융상품 만기상환 (2차)
+
+### 개요
+
+웹 캐시 대시보드에서 금융상품 데이터를 자동으로 크롤링하여 DB에 저장. 상환/수령 스케줄 목록에서 **"상환 −"**과 **"수령 +"** 섹션을 함께 표시.
+
+### 데이터 소스
+
+- **URL**: https://www.wdashboard.co.kr/cbrd_main.act
+- **경로**: 맞춤보고서 → 자금일보 → 자금현황 → 3. 금융상품외(가용): 인출가능상품
+- **크롤링**: 자동 (Playwright 헤드리스 브라우저)
+
+### 데이터 모델
+
+#### `FinancialProduct` 테이블
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `id` | Integer (PK) | 자동 증분 |
+| `product_code` | String(100) | 상품코드 (회사명_상품명, unique) |
+| `company_name` | String(200) | 은행/증권사명 |
+| `product_name` | String(200) | 금융상품명 (예: IMA 금융상품) |
+| `amount` | Decimal(18,2) | 잔액 |
+| `original_maturity_date` | Date | 원본 만기일 (웹 크롤링 원본) |
+| `adjusted_maturity_date` | Date | 영업일 조정 후 만기일 |
+| `is_active` | Integer | 활성 여부 (1=활성, 0=비활성) |
+| `synced_at` | DateTime | 동기화 시간 |
+
+**인덱스**:
+- `(adjusted_maturity_date)` — 캘린더 조회 최적화
+- `(company_name)` — 필터 최적화
+
+### 웹 크롤링 프로세스
+
+```
+[사용자] "동기화" 버튼 클릭
+   ↓
+[클라이언트] POST /api/financial-product/sync
+   ↓
+[서버]
+   ├─ Playwright 헤드리스 브라우저 시작
+   ├─ 로그인 (user: mjsong@bodyfriend.co.kr, pw: 7979)
+   ├─ 메뉴 네비: "맞춤보고서" → "자금일보" → "자금현황"
+   ├─ 페이지 로드 대기 (networkidle)
+   ├─ "3. 금융상품외" 섹션까지 스크롤
+   ├─ HTML 파싱 (BeautifulSoup)
+   │  ├─ 테이블 찾기 (class, id, 또는 "금융상품" 텍스트)
+   │  ├─ tbody 행 순회 (헤더 제외)
+   │  ├─ 각 행마다:
+   │  │  ├─ company_name (cells[0])
+   │  │  ├─ product_name (cells[1])
+   │  │  ├─ amount (cells[2], 쉼표 제거)
+   │  │  ├─ original_maturity_date (cells[3], 날짜 파싱)
+   │  │  └─ product_code = company_name + product_name
+   │  └─ dict 리스트 반환
+   ├─ crud.replace_all_financial_products()
+   │  ├─ DELETE FROM financial_product
+   │  ├─ next_business_day() 로 adjusted_maturity_date 계산
+   │  └─ 일괄 INSERT
+   ├─ JSON 응답: {success: true, inserted_count: N}
+   └─ 클라이언트 토스트 표시
+   ↓
+[화면] "N건 동기화 완료", 목록 새로고침
+```
+
+### API 라우트
+
+#### `POST /api/financial-product/sync`
+
+웹 대시보드 크롤링 → DB 동기화
+
+**요청**: 없음 (POST body 불필요)
+
+**응답**:
+```json
+{
+  "success": true,
+  "inserted_count": 42
+}
+```
+
+**에러**:
+```json
+{
+  "success": false,
+  "message": "크롤링 결과가 없습니다."
+}
+```
+
+#### `GET /api/financial-product`
+
+금융상품 목록 조회 (기간/회사명 필터)
+
+**쿼리**:
+- `from_date` (optional): `YYYY-MM-DD` (만기일 시작)
+- `to_date` (optional): `YYYY-MM-DD` (만기일 종료)
+- `company_name` (optional): 회사명 exact match
+
+**응답**:
+```json
+{
+  "success": true,
+  "items": [
+    {
+      "id": 1,
+      "product_code": "한국투자증권_IMA금융상품",
+      "company_name": "한국투자증권",
+      "product_name": "IMA 금융상품",
+      "amount": 50000000.0,
+      "original_maturity_date": "2026-12-25",
+      "adjusted_maturity_date": "2026-12-28"
+    }
+  ]
+}
+```
+
+#### `GET /api/financial-product/calendar`
+
+캘린더 뷰용: 날짜별 그룹
+
+**쿼리**:
+- `year` (required): 연도
+- `month` (required): 월 (1~12)
+
+**응답**:
+```json
+{
+  "success": true,
+  "year": 2026,
+  "month": 5,
+  "by_date": {
+    "2026-05-15": [
+      {
+        "id": 1,
+        "product_code": "한국투자증권_IMA금융상품",
+        "company_name": "한국투자증권",
+        "product_name": "IMA 금융상품",
+        "amount": 50000000.0,
+        "original_maturity_date": "2026-12-25",
+        "adjusted_maturity_date": "2026-12-28"
+      }
+    ]
+  }
+}
+```
+
+### UI 변경사항
+
+#### 목록 뷰 구조 변경
+
+**1차 (상환만)**:
+```
+━━━━━━━━━━━━━━━━━━━━━━━
+  2026년 5월 15일 오늘
+  지출 −                123,456,789 원
+━━━━━━━━━━━━━━━━━━━━━━━
+  │ [상환 항목들...]
+```
+
+**2차 (상환 + 수령)**:
+```
+━━━━━━━━━━━━━━━━━━━━━━━
+  2026년 5월 15일 오늘
+━━━━━━━━━━━━━━━━━━━━━━━
+  상환 −                123,456,789 원
+  │ [상환 항목들...]
+━━━━━━━━━━━━━━━━━━━━━━━
+  수령 +                50,000,000 원
+  │ [수령 항목들...]
+```
+
+#### 색상 구분
+
+- **상환 −**: 위험(빨강) 색상 (`var(--danger)`)
+- **수령 +**: 성공(초록) 색상 (`var(--success)`)
+
+#### 렌더링 로직
+
+`loadListGrouped()` 함수 변경:
+```javascript
+// 1. 두 API 병렬 호출
+const [repRes, recRes] = await Promise.all([
+  fetch('/api/repayment-schedule'),
+  fetch('/api/financial-product'),
+]);
+
+// 2. 날짜별로 {repayment: [...], receipt: [...]} 병합
+for (const k of sortedKeys) {
+  const repaymentItems = groups[k].repayment;
+  const receiptItems = groups[k].receipt;
+  
+  // 3. 상환 섹션 렌더
+  if (repaymentItems.length) { ... }
+  
+  // 4. 수령 섹션 렌더
+  if (receiptItems.length) { ... }
+}
+```
+
+### 규칙
+
+#### 크롤링 규칙
+
+| 항목 | 규칙 | 비고 |
+|------|------|------|
+| **웹사이트** | 웹 캐시 대시보드 (https://wdashboard.co.kr) | 고정 |
+| **인증** | user: mjsong@bodyfriend.co.kr, pw: 7979 | 고정 (재무회계팀 운영계정) |
+| **타겟 페이지** | 맞춤보고서 → 자금일보 → 자금현황 | 메뉴 경로 고정 |
+| **타겟 섹션** | "3. 금융상품외(가용): 인출가능상품" | 섹션명 정확히 |
+| **브라우저 설정** | headless=True (배경 실행) | 자동 |
+| **대기 정책** | networkidle (모든 요청 완료 후) | page.wait_for_load_state("networkidle") |
+| **테이블 파싱** | BeautifulSoup, 유연한 선택자 | class, id, 또는 "금융상품" 텍스트 |
+| **데이터 매핑** | cells[0]=회사, [1]=상품명, [2]=금액, [3]=만기일 | 웹 테이블 구조 파악 필요 시 수정 |
+
+#### 날짜 파싱 규칙
+
+```python
+def _parse_date(date_str):
+    # "2026.12.25" → date(2026, 12, 25)
+    # "12.25" (현재연도 기준) → 과거면 내년
+    # 예: 5월에 "12.25" 파싱 → 2026-12-25
+    # 예: 12월에 "02.15" 파싱 → 2027-02-15
+```
+
+#### 데이터 전체 교체 규칙
+
+| 항목 | 규칙 | 비고 |
+|------|------|------|
+| **교체 방식** | Replace-All | 기존 데이터 모두 삭제 후 새 데이터 INSERT |
+| **트랜잭션** | 원자성 보장 | 모두 성공 또는 모두 실패 |
+| **중복 제거** | `product_code` unique | 같은 상품은 한 건만 유지 |
+| **크롤링 실패 시** | DB 변경 없음 | 이전 데이터 유지 |
+
+#### 영업일 조정 규칙
+
+| 항목 | 규칙 | 예시 |
+|------|------|------|
+| **적용** | 모든 `original_maturity_date` | 자동으로 `adjusted_maturity_date` 계산 |
+| **기준** | 토/일 또는 한국 공휴일 | `holidays.KR()` 라이브러리 사용 |
+| **저장** | 원본 + 조정 날짜 모두 저장 | 감사 및 분석용 보존 |
+| **표시** | `adjusted_maturity_date` 기준만 표시 | 사용자는 영업일만 봄 |
+
+#### 필터 규칙
+
+| 항목 | 규칙 | 비고 |
+|------|------|------|
+| **기간 필터** | `adjusted_maturity_date` 기준 | from_date ~ to_date |
+| **회사명 필터** | exact match | "한국투자증권" 등 |
+| **is_active** | 1만 조회 (비활성 제외) | 기본값 1 |
+
+---
+
+## 향후 개선 (3차 이후)
 
 - [ ] 카드 결제대금 크롤링 (자동 반영)
-- [ ] 금융상품 만기 데이터 수동 입력/관리
 - [ ] 웍스 알림 연동
 - [ ] 공휴일 변경 시 일괄 재계산 함수
 - [ ] 상환 현황 대시보드 (완료율, 누적액 등)
@@ -583,4 +834,4 @@ holidays>=0.34               # 한국 공휴일
 
 ---
 
-마지막 업데이트: 2026-05-14
+마지막 업데이트: 2026-05-14 (2차 금융상품 기능 추가)

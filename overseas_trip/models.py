@@ -82,3 +82,23 @@ class LoanRepayment(Base):
     total_payment = Column(DECIMAL(18, 2), nullable=True, comment="원리금")
     remaining_principal = Column(DECIMAL(18, 2), nullable=True, comment="미회수 원금")
     uploaded_at = Column(DateTime, server_default=func.now(), comment="업로드 일시")
+
+
+class FinancialProduct(Base):
+    """금융상품 만기상환 (웹 캐시 대시보드 자동 크롤링)"""
+    __tablename__ = "financial_product"
+    __table_args__ = (
+        Index("ix_financial_product_maturity", "adjusted_maturity_date"),
+        Index("ix_financial_product_company", "company_name"),
+        {"comment": "금융상품 만기상환 — 웹 캐시 대시보드 자동 크롤링"},
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True, comment="PK")
+    product_code = Column(String(100), nullable=False, unique=True, comment="상품코드 (회사명_상품명)")
+    company_name = Column(String(200), nullable=False, comment="은행/증권사명")
+    product_name = Column(String(200), nullable=False, comment="금융상품명 (예: IMA 금융상품)")
+    amount = Column(DECIMAL(18, 2), nullable=False, comment="잔액")
+    original_maturity_date = Column(Date, nullable=False, comment="원본 만기일 (웹 크롤링 원본)")
+    adjusted_maturity_date = Column(Date, nullable=False, comment="영업일 조정 후 만기일 (주말/공휴일이면 다음 영업일)")
+    is_active = Column(Integer, default=1, comment="활성 여부 (1=활성, 0=비활성)")
+    synced_at = Column(DateTime, server_default=func.now(), comment="동기화 일시")
