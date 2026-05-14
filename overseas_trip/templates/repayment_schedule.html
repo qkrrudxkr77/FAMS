@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>FAMS · 상환/수령 스케줄</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── 페이지 전용 스타일 ─── */
+    .view-toggle { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .view-toggle button {
+      padding:8px 18px; background:#fff; border:none; cursor:pointer;
+      font-size:13px; font-weight:600; color:var(--text-secondary);
+      transition: all .15s;
+    }
+    .view-toggle button.active { background: var(--primary); color:#fff; }
+    .view-toggle button:not(.active):hover { background:#f8fafc; }
+
+    /* 캘린더 레이아웃 */
+    .calendar-wrap { display:grid; grid-template-columns: 1fr 360px; gap:20px; }
+    .calendar-card { background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
+    .calendar-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 20px; border-bottom:1px solid var(--border);
+      background:#f8fafc;
+    }
+    .calendar-title { font-size:18px; font-weight:700; color:var(--text-primary); }
+    .calendar-nav { display:flex; gap:8px; align-items:center; }
+    .calendar-nav button {
+      width:32px; height:32px; border:1px solid var(--border); background:#fff;
+      border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+      color:var(--text-primary); transition:all .15s;
+    }
+    .calendar-nav button:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .calendar-today-btn {
+      padding:6px 14px; border:1px solid var(--border); background:#fff; cursor:pointer;
+      border-radius:6px; font-size:12px; font-weight:600; color:var(--text-primary);
+    }
+    .calendar-today-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+    .calendar-grid { display:grid; grid-template-columns: repeat(7, 1fr); }
+    .calendar-dow {
+      text-align:center; padding:10px 0; font-size:11px; font-weight:700;
+      color:var(--text-secondary); letter-spacing:.5px; text-transform:uppercase;
+      background:#f8fafc; border-bottom:1px solid var(--border);
+    }
+    .calendar-dow.sun { color:var(--danger); }
+    .calendar-dow.sat { color:var(--primary); }
+
+    .calendar-cell {
+      min-height:96px; padding:8px; border-right:1px solid var(--border); border-bottom:1px solid var(--border);
+      cursor:pointer; transition: background .12s; display:flex; flex-direction:column;
+      background:#fff;
+    }
+    .calendar-cell:nth-child(7n) { border-right:none; }
+    .calendar-cell:hover { background:#eff6ff; }
+    .calendar-cell.other-month { background:#fafafa; color:#cbd5e1; cursor:default; }
+    .calendar-cell.other-month:hover { background:#fafafa; }
+    .calendar-cell.today { background:#eff6ff; }
+    .calendar-cell.selected { background:#dbeafe; box-shadow: inset 0 0 0 2px var(--primary); }
+    .calendar-cell.has-items { font-weight:600; }
+
+    .cell-date { font-size:13px; font-weight:600; }
+    .cell-date.sun { color:var(--danger); }
+    .cell-date.sat { color:var(--primary); }
+    .cell-summary {
+      margin-top:auto; display:flex; flex-direction:column; gap:2px;
+    }
+    .cell-count {
+      display:inline-block; font-size:10px; font-weight:700; padding:2px 6px;
+      background:var(--danger); color:#fff; border-radius:10px; align-self:flex-start;
+    }
+    .cell-total { font-size:10px; color:var(--text-secondary); font-weight:500; }
+
+    /* 사이드 패널 */
+    .day-panel {
+      background:#fff; border:1px solid var(--border); border-radius:12px;
+      box-shadow: var(--shadow); padding:0; overflow:hidden; height:fit-content;
+    }
+    .day-panel-header {
+      padding:16px 20px; border-bottom:1px solid var(--border);
+      background:#f8fafc; font-size:15px; font-weight:700; color:var(--text-primary);
+    }
+    .day-panel-body { padding:16px 20px; max-height:600px; overflow-y:auto; }
+    .day-panel-empty { color:var(--text-secondary); font-size:13px; text-align:center; padding:40px 0; }
+    .day-section-label {
+      font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+      color:var(--text-secondary); margin-bottom:8px;
+    }
+    .day-section-label.spend { color:var(--danger); }
+    .day-total-amount {
+      font-size:20px; font-weight:700; color:var(--text-primary); margin-bottom:16px;
+    }
+    .day-total-amount.spend { color:var(--danger); }
+    .day-item {
+      padding:10px 12px; background:#fafafa; border-radius:6px; margin-bottom:8px;
+      border-left:3px solid var(--danger);
+    }
+    .day-item-loan { font-size:13px; font-weight:600; color:var(--text-primary); }
+    .day-item-row { display:flex; justify-content:space-between; font-size:11px; color:var(--text-secondary); margin-top:4px; }
+    .day-item-row b { color:var(--text-primary); font-weight:600; }
+
+    /* 캘린더 오늘 버튼 — .calendar-nav button의 32px 상속 방지 */
+    .calendar-today-btn {
+      width:auto !important; padding:0 14px; height:32px;
+    }
+
+    /* 업로드 토스트 */
+    .toast {
+      position:fixed; bottom:24px; right:24px; padding:14px 22px;
+      background:#fff; border:1px solid var(--border); border-radius:8px;
+      box-shadow:var(--shadow-md); font-size:13px; font-weight:600;
+      z-index:1000; display:flex; align-items:center; gap:10px;
+      animation: slide-in .3s;
+    }
+    .toast.success { border-left:4px solid var(--success); color:var(--success); }
+    .toast.error { border-left:4px solid var(--danger); color:var(--danger); }
+    @keyframes slide-in { from { transform: translateX(20px); opacity:0; } to { transform:none; opacity:1; } }
+
+    /* 날짜별 스크롤 목록 */
+    .list-scroll-wrap {
+      overflow-y: auto;
+      max-height: calc(100vh - 160px);
+      padding-bottom: 60px;
+    }
+    .list-date-section { margin-bottom: 24px; }
+    .list-date-heading {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px 10px 0 0;
+      font-size: 15px; font-weight: 700; color: var(--text-primary);
+    }
+    .list-date-heading .list-date-meta {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .list-date-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .5px;
+      text-transform: uppercase; color: var(--danger);
+    }
+    .list-date-total {
+      font-size: 15px; font-weight: 700; color: var(--danger);
+    }
+    .list-date-today-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px;
+      background: var(--primary); color: #fff; border-radius: 10px;
+    }
+    .list-items-wrap {
+      border: 1px solid var(--border); border-top: none;
+      border-radius: 0 0 10px 10px; overflow: hidden;
+    }
+    .list-item {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      background: #fff;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .list-item-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .list-item-name {
+      font-size: 13px; font-weight: 700; color: var(--text-primary);
+    }
+    .list-item-inst {
+      font-size: 12px; font-weight: 400; color: var(--text-secondary);
+    }
+    .list-item-total {
+      font-size: 13px; font-weight: 700; color: var(--danger);
+    }
+    .list-item-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 12px;
+    }
+    .list-item-field { font-size: 11px; color: var(--text-secondary); }
+    .list-item-value { font-size: 12px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+    .list-empty-state { text-align:center; padding:80px 20px; color:var(--text-secondary); }
+    .list-empty-state svg { margin:0 auto 16px; display:block; }
+    .list-empty-state h3 { font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:8px; }
+    .list-empty-state p { font-size:13px; }
+
+    .empty-state { text-align:center; padding:80px 20px; color:var(--text-secondary); }
+    .empty-state svg { margin:0 auto 16px; display:block; }
+    .empty-state h3 { font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:8px; }
+    .empty-state p { font-size:13px; }
+  </style>
+</head>
+<body>
+
+<!-- ============= Sidebar ============= -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="22" x2="21" y2="22"/><line x1="3" y1="10" x2="21" y2="10"/>
+        <polygon points="12 2 3 10 21 10"/>
+        <line x1="6" y1="10" x2="6" y2="22"/><line x1="10" y1="10" x2="10" y2="22"/>
+        <line x1="14" y1="10" x2="14" y2="22"/><line x1="18" y1="10" x2="18" y2="22"/>
+      </svg>
+    </div>
+    <div class="sidebar-brand">FAMS</div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="메뉴 접기/펼치기">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div class="sidebar-section">MAIN</div>
+  <ul class="sidebar-nav">
+    <li>
+      <a href="#">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+        <span class="menu-text">대시보드</span>
+      </a>
+    </li>
+    <li>
+      <a href="/">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></span>
+        <span class="menu-text">해외출장관리</span>
+      </a>
+    </li>
+    <li>
+      <a href="/repayment-schedule" class="active">
+        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+        <span class="menu-text">상환/수령 스케줄</span>
+      </a>
+    </li>
+  </ul>
+  <div class="sidebar-user">
+    <div class="user-avatar">
+      <span id="userPhotoFallback" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;">박</span>
+      <img src="/api/user-photo" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;"
+        onload="if(this.naturalWidth>0){this.style.display='block';document.getElementById('userPhotoFallback').style.display='none';}"
+        onerror="this.style.display='none';">
+    </div>
+    <div class="user-info">
+      <div class="user-name">박병훈 부장 <span style="color:#94a3b8;font-weight:400;font-size:11px">HR팀</span></div>
+      <div class="user-meta">marinhoon@bodyfriend.co.kr</div>
+    </div>
+  </div>
+  <div class="sidebar-logout">
+    <a href="#" onclick="doLogout()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span class="logout-text">로그아웃</span>
+    </a>
+  </div>
+</aside>
+
+<!-- ============= Main ============= -->
+<main class="main">
+
+  <div class="page-header">
+    <h1 class="page-title">
+      <span class="page-title-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </span>
+      상환/수령 스케줄
+    </h1>
+    <div class="page-actions">
+      <div class="view-toggle" id="viewToggle">
+        <button data-view="list" class="active">목록형</button>
+        <button data-view="calendar">캘린더형</button>
+      </div>
+      <label class="btn btn-secondary" style="cursor:pointer; margin-left:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        엑셀 업로드
+        <input type="file" id="uploadFile" accept=".xlsx" style="display:none;">
+      </label>
+    </div>
+  </div>
+
+  <!-- ============= 캘린더 뷰 ============= -->
+  <div id="calendarView" style="display:none;">
+    <div class="calendar-wrap">
+      <div class="calendar-card">
+        <div class="calendar-header">
+          <div class="calendar-title" id="calendarTitle">YYYY년 M월</div>
+          <div class="calendar-nav">
+            <button id="prevMonth" title="이전 달">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button class="calendar-today-btn" id="todayBtn">오늘</button>
+            <button id="nextMonth" title="다음 달">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="calendar-grid">
+          <div class="calendar-dow sun">일</div>
+          <div class="calendar-dow">월</div>
+          <div class="calendar-dow">화</div>
+          <div class="calendar-dow">수</div>
+          <div class="calendar-dow">목</div>
+          <div class="calendar-dow">금</div>
+          <div class="calendar-dow sat">토</div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+
+      <div class="day-panel" id="dayPanel">
+        <div class="day-panel-header" id="dayPanelHeader">날짜를 선택하세요</div>
+        <div class="day-panel-body" id="dayPanelBody">
+          <div class="day-panel-empty">캘린더에서 날짜를 클릭하면 상환 항목이 표시됩니다.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= 목록 뷰 ============= -->
+  <div id="listView">
+    <div class="list-scroll-wrap" id="listScrollWrap">
+      <div id="listSections"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const TODAY = new Date({{ today_year }}, {{ today_month - 1 }}, 1);
+let currentYear = TODAY.getFullYear();
+let currentMonth = TODAY.getMonth() + 1; // 1-12
+let selectedDateKey = null;
+let calendarData = {}; // {dateKey: [items]}
+
+const fmt = (n) => n == null ? '-' : Number(n).toLocaleString('ko-KR');
+const pad = (n) => String(n).padStart(2, '0');
+const dateKey = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+
+/* ── 뷰 토글 ── */
+document.querySelectorAll('#viewToggle button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#viewToggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const view = btn.dataset.view;
+    document.getElementById('calendarView').style.display = view === 'calendar' ? '' : 'none';
+    document.getElementById('listView').style.display = view === 'list' ? '' : 'none';
+    if (view === 'calendar') loadCalendar();
+    if (view === 'list') loadListGrouped();
+  };
+});
+
+/* ── 캘린더 렌더 ── */
+async function loadCalendar() {
+  const res = await fetch(`/api/repayment-schedule/calendar?year=${currentYear}&month=${currentMonth}`);
+  const json = await res.json();
+  calendarData = json.by_date || {};
+  renderCalendar();
+}
+
+function renderCalendar() {
+  document.getElementById('calendarTitle').textContent = `${currentYear}년 ${currentMonth}월`;
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  const firstDay = new Date(currentYear, currentMonth - 1, 1);
+  const lastDay = new Date(currentYear, currentMonth, 0);
+  const startWeekday = firstDay.getDay(); // 0=일
+  const daysInMonth = lastDay.getDate();
+  const prevLastDay = new Date(currentYear, currentMonth - 1, 0).getDate();
+
+  const today = new Date();
+  const todayKey = dateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+  // 이전 달 채우기
+  for (let i = startWeekday - 1; i >= 0; i--) {
+    const d = prevLastDay - i;
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell other-month';
+    cell.innerHTML = `<div class="cell-date">${d}</div>`;
+    grid.appendChild(cell);
+  }
+
+  // 이번 달
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = dateKey(currentYear, currentMonth, d);
+    const items = calendarData[key] || [];
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell';
+    if (key === todayKey) cell.classList.add('today');
+    if (key === selectedDateKey) cell.classList.add('selected');
+    if (items.length) cell.classList.add('has-items');
+
+    const wd = new Date(currentYear, currentMonth - 1, d).getDay();
+    const dateClass = wd === 0 ? 'sun' : (wd === 6 ? 'sat' : '');
+
+    const total = items.reduce((s, it) => s + (it.total_payment || 0), 0);
+    cell.innerHTML = `
+      <div class="cell-date ${dateClass}">${d}</div>
+      ${items.length ? `
+        <div class="cell-summary">
+          <span class="cell-count">${items.length}건</span>
+          <span class="cell-total">${fmt(total)}</span>
+        </div>
+      ` : ''}
+    `;
+    cell.onclick = () => selectDate(key);
+    grid.appendChild(cell);
+  }
+
+  // 다음 달 채우기 (7의 배수 맞춤)
+  const filled = startWeekday + daysInMonth;
+  const remaining = (7 - (filled % 7)) % 7;
+  for (let d = 1; d <= remaining; d++) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell other-month';
+    cell.innerHTML = `<div class="cell-date">${d}</div>`;
+    grid.appendChild(cell);
+  }
+}
+
+function selectDate(key) {
+  selectedDateKey = key;
+  renderCalendar();
+  renderDayPanel();
+}
+
+function renderDayPanel() {
+  const header = document.getElementById('dayPanelHeader');
+  const body = document.getElementById('dayPanelBody');
+  if (!selectedDateKey) {
+    header.textContent = '날짜를 선택하세요';
+    body.innerHTML = '<div class="day-panel-empty">캘린더에서 날짜를 클릭하면 상환 항목이 표시됩니다.</div>';
+    return;
+  }
+  const items = calendarData[selectedDateKey] || [];
+  const [y, m, d] = selectedDateKey.split('-');
+  header.textContent = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+
+  if (!items.length) {
+    body.innerHTML = '<div class="day-panel-empty">해당 일자의 상환 항목이 없습니다.</div>';
+    return;
+  }
+
+  const total = items.reduce((s, it) => s + (it.total_payment || 0), 0);
+  let html = `
+    <div class="day-section-label spend">지출 −</div>
+    <div class="day-total-amount spend">${fmt(total)} 원</div>
+  `;
+  for (const it of items) {
+    html += `
+      <div class="day-item">
+        <div class="day-item-loan">${it.loan_name} <span style="color:var(--text-secondary);font-weight:400;">· ${it.installment_no}회차</span></div>
+        <div class="day-item-row"><span>원금</span><b>${fmt(it.principal)}</b></div>
+        <div class="day-item-row"><span>이자</span><b>${fmt(it.interest)}</b></div>
+        <div class="day-item-row"><span>원리금</span><b>${fmt(it.total_payment)}</b></div>
+        <div class="day-item-row"><span>미회수 원금</span><b>${fmt(it.remaining_principal)}</b></div>
+      </div>
+    `;
+  }
+  body.innerHTML = html;
+}
+
+/* ── 캘린더 네비 ── */
+document.getElementById('prevMonth').onclick = () => {
+  if (currentMonth === 1) { currentMonth = 12; currentYear--; } else { currentMonth--; }
+  selectedDateKey = null;
+  loadCalendar();
+  renderDayPanel();
+};
+document.getElementById('nextMonth').onclick = () => {
+  if (currentMonth === 12) { currentMonth = 1; currentYear++; } else { currentMonth++; }
+  selectedDateKey = null;
+  loadCalendar();
+  renderDayPanel();
+};
+document.getElementById('todayBtn').onclick = () => {
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth() + 1;
+  selectedDateKey = null;
+  loadCalendar();
+  renderDayPanel();
+};
+
+/* ── 날짜별 그룹 목록 ── */
+async function loadListGrouped() {
+  const container = document.getElementById('listSections');
+  container.innerHTML = '<div style="text-align:center;padding:60px 0;color:var(--text-secondary);font-size:13px;">불러오는 중...</div>';
+
+  const res = await fetch('/api/repayment-schedule');
+  const json = await res.json();
+  const items = json.items || [];
+
+  if (!items.length) {
+    container.innerHTML = `<div class="list-empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      <h3>데이터가 없습니다</h3>
+      <p>엑셀을 업로드해 주세요.</p>
+    </div>`;
+    return;
+  }
+
+  // 날짜별 그룹
+  const groups = {};
+  for (const it of items) {
+    const k = it.adjusted_due_date || it.original_due_date;
+    if (!k) continue;
+    if (!groups[k]) groups[k] = [];
+    groups[k].push(it);
+  }
+  const sortedKeys = Object.keys(groups).sort();
+
+  const today = new Date();
+  const todayKey = dateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+  let html = '';
+  for (const k of sortedKeys) {
+    const its = groups[k];
+    const [y, m, d] = k.split('-');
+    const label = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+    const total = its.reduce((s, it) => s + (it.total_payment || 0), 0);
+    const isToday = k === todayKey;
+
+    html += `<div class="list-date-section" id="list-date-${k}">
+      <div class="list-date-heading">
+        <span>${label}${isToday ? ' <span class="list-date-today-badge">오늘</span>' : ''}</span>
+        <div class="list-date-meta">
+          <span class="list-date-label">지출 −</span>
+          <span class="list-date-total">${fmt(total)} 원</span>
+        </div>
+      </div>
+      <div class="list-items-wrap">`;
+
+    for (const it of its) {
+      html += `
+        <div class="list-item">
+          <div class="list-item-header">
+            <span class="list-item-name">${it.loan_name} <span class="list-item-inst">· ${it.installment_no}회차</span></span>
+            <span class="list-item-total">${fmt(it.total_payment)} 원</span>
+          </div>
+          <div class="list-item-grid">
+            <div>
+              <div class="list-item-field">원금</div>
+              <div class="list-item-value">${fmt(it.principal)}</div>
+            </div>
+            <div>
+              <div class="list-item-field">이자</div>
+              <div class="list-item-value">${fmt(it.interest)}</div>
+            </div>
+            <div>
+              <div class="list-item-field">원리금</div>
+              <div class="list-item-value">${fmt(it.total_payment)}</div>
+            </div>
+            <div>
+              <div class="list-item-field">미회수 원금</div>
+              <div class="list-item-value">${fmt(it.remaining_principal)}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    html += `</div></div>`;
+  }
+
+  container.innerHTML = html;
+
+  // 오늘 날짜 섹션으로 스크롤 (없으면 가장 가까운 미래 날짜)
+  const todayEl = document.getElementById(`list-date-${todayKey}`);
+  if (todayEl) {
+    todayEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    const futureKey = sortedKeys.find(k => k >= todayKey);
+    if (futureKey) {
+      const el = document.getElementById(`list-date-${futureKey}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+}
+
+/* ── 엑셀 업로드 ── */
+document.getElementById('uploadFile').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  showToast('업로드 중...', '');
+  try {
+    const res = await fetch('/api/repayment-schedule/upload', { method: 'POST', body: fd });
+    const json = await res.json();
+    if (json.success) {
+      showToast(`${json.inserted_count}건 등록 완료. 새로고침 합니다...`, 'success');
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      showToast('업로드 실패: ' + (json.message || '알 수 없는 오류'), 'error');
+    }
+  } catch (err) {
+    showToast('업로드 오류: ' + err.message, 'error');
+  } finally {
+    e.target.value = '';
+  }
+};
+
+function showToast(msg, type) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  if (type) setTimeout(() => t.remove(), 4000);
+}
+
+/* ── 사이드바 토글 ── */
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed');
+  document.body.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+}
+(function initSidebar() {
+  if (localStorage.getItem('sidebarCollapsed') === '1') {
+    document.getElementById('sidebar').classList.add('collapsed');
+    document.body.classList.add('sidebar-collapsed');
+  }
+})();
+
+/* ── 로그아웃 ── */
+async function doLogout() {
+  try { await fetch('/api/logout', { credentials: 'include' }); } catch (_) {}
+  localStorage.clear();
+  sessionStorage.clear();
+  document.cookie.split(';').forEach(c => {
+    document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+  });
+  location.href = 'https://portal.bodyfriend.co.kr/portal/main/portalMain.do';
+}
+
+/* ── 초기 로드 ── */
+loadListGrouped();
+</script>
+</body>
+</html>
