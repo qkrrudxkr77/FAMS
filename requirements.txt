@@ -17,3 +17,7 @@ sqlalchemy==2.0.30
 pymysql==1.1.1
 holidays==0.46
 requests
+
+# 상환/수령 스케줄 (엑셀 업로드 파싱)
+openpyxl==3.1.5
+msoffcrypto-tool==5.4.2

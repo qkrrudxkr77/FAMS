@@ -1,7 +1,8 @@
 from datetime import date
 from typing import Optional
 from sqlalchemy.orm import Session
-from overseas_trip.models import OverseasTripExpense
+from overseas_trip.models import OverseasTripExpense, LoanRepayment
+from overseas_trip.holiday_util import next_business_day
 
 
 def get_by_doc_no_and_name(db: Session, application_doc_no: str, name: str) -> Optional[OverseasTripExpense]:
@@ -138,3 +139,71 @@ def cancel_row(db: Session, row_id: int) -> bool:
     row.cancel_change = "취소"
     db.commit()
     return True
+
+
+# ─────────────────────────────────────────────
+# 차입금 상환 스케줄 (loan_repayment)
+# ─────────────────────────────────────────────
+
+def replace_all_loan_repayments(db: Session, rows: list[dict]) -> int:
+    """
+    상환스케줄 전체 교체: 기존 데이터 모두 삭제 후 새 행 일괄 INSERT.
+    rows[i]에 original_due_date가 있으면 adjusted_due_date를 계산해 함께 저장.
+    """
+    db.query(LoanRepayment).delete()
+    objects = []
+    for r in rows:
+        orig = r["original_due_date"]
+        adjusted = next_business_day(orig)
+        objects.append(LoanRepayment(
+            block_index=r["block_index"],
+            loan_name=r["loan_name"],
+            installment_no=r["installment_no"],
+            original_due_date=orig,
+            adjusted_due_date=adjusted,
+            principal=r.get("principal"),
+            interest=r.get("interest"),
+            total_payment=r.get("total_payment"),
+            remaining_principal=r.get("remaining_principal"),
+        ))
+    db.bulk_save_objects(objects)
+    db.commit()
+    return len(objects)
+
+
+def list_loan_repayments(
+    db: Session,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    loan_name: Optional[str] = None,
+) -> list[LoanRepayment]:
+    """기간/대출명 필터로 상환 스케줄 조회 (adjusted_due_date 기준)"""
+    q = db.query(LoanRepayment)
+    if from_date:
+        q = q.filter(LoanRepayment.adjusted_due_date >= from_date)
+    if to_date:
+        q = q.filter(LoanRepayment.adjusted_due_date <= to_date)
+    if loan_name:
+        q = q.filter(LoanRepayment.loan_name == loan_name)
+    return q.order_by(
+        LoanRepayment.adjusted_due_date.asc(),
+        LoanRepayment.loan_name.asc(),
+        LoanRepayment.installment_no.asc(),
+    ).all()
+
+
+def get_loan_repayments_by_month(db: Session, year: int, month: int) -> list[LoanRepayment]:
+    """캘린더용: 해당 월의 adjusted_due_date 기반 전체 항목"""
+    from calendar import monthrange
+    last_day = monthrange(year, month)[1]
+    return list_loan_repayments(
+        db,
+        from_date=date(year, month, 1),
+        to_date=date(year, month, last_day),
+    )
+
+
+def get_distinct_loan_names(db: Session) -> list[str]:
+    """필터 드롭다운용: distinct 대출명 (사전순)"""
+    rows = db.query(LoanRepayment.loan_name).distinct().order_by(LoanRepayment.loan_name.asc()).all()
+    return [r[0] for r in rows]

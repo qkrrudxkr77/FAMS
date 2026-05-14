@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Date, DateTime, Text, DECIMAL, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Date, DateTime, Text, DECIMAL, UniqueConstraint, Index
 from sqlalchemy.sql import func
 from overseas_trip.db import Base
 
@@ -60,3 +60,25 @@ class OverseasTripExpense(Base):
 
     created_at = Column(DateTime, server_default=func.now(), comment="생성일시")
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), comment="수정일시")
+
+
+class LoanRepayment(Base):
+    """차입금 상환 스케줄 (신차입금현황 엑셀 '상환스케줄' 탭 1회차당 1행)"""
+    __tablename__ = "loan_repayment"
+    __table_args__ = (
+        Index("ix_loan_repayment_adjusted", "adjusted_due_date"),
+        Index("ix_loan_repayment_loan", "loan_name", "block_index"),
+        {"comment": "차입금 회차별 상환 스케줄 — 신차입금현황 엑셀 업로드 시 전체 교체"},
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True, comment="PK")
+    block_index = Column(Integer, nullable=False, comment="엑셀 내 블록 순서 (중복 대출명 구분)")
+    loan_name = Column(String(200), nullable=False, comment="대출명 (예: 농협은행 140억 대출)")
+    installment_no = Column(Integer, nullable=False, comment="회차 번호")
+    original_due_date = Column(Date, nullable=False, comment="엑셀 원본 납입일")
+    adjusted_due_date = Column(Date, nullable=False, comment="영업일 조정 후 납입일 (주말/공휴일이면 다음 영업일)")
+    principal = Column(DECIMAL(18, 2), nullable=True, comment="원금")
+    interest = Column(DECIMAL(18, 2), nullable=True, comment="이자")
+    total_payment = Column(DECIMAL(18, 2), nullable=True, comment="원리금")
+    remaining_principal = Column(DECIMAL(18, 2), nullable=True, comment="미회수 원금")
+    uploaded_at = Column(DateTime, server_default=func.now(), comment="업로드 일시")

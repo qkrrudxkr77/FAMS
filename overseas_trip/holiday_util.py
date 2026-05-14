@@ -28,3 +28,14 @@ def get_last_business_day_of_next_month(base_date: date) -> date:
         last_day -= timedelta(days=1)
 
     return last_day
+
+
+def next_business_day(d: date) -> date:
+    """
+    주어진 날짜가 주말/공휴일이면 다음 영업일로 미룬다.
+    이미 영업일이면 그대로 반환.
+    예: 2026-05-30(토) → 2026-06-01(월)
+    """
+    while d.weekday() >= 5 or d in KR_HOLIDAYS:
+        d += timedelta(days=1)
+    return d

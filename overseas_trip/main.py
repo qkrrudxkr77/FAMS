@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 from urllib.parse import urlencode
 
-from fastapi import FastAPI, Depends, Form, Request, HTTPException, status
+from fastapi import FastAPI, Depends, Form, Request, HTTPException, status, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -25,7 +25,9 @@ from overseas_trip.db import get_db, init_db
 from overseas_trip.scheduler import start_scheduler, stop_scheduler
 from overseas_trip import crud
 from overseas_trip.auth import validate_workthrough_token, create_fams_access_token, create_fams_refresh_token, verify_fams_token, get_current_user_email
+from overseas_trip.excel_parser import parse_repayment_schedule
 import jwt
+from datetime import date, datetime as dt
 
 logging.basicConfig(
     level=logging.INFO,
@@ -520,6 +522,93 @@ def refresh_user_photo():
     t = threading.Thread(target=_fetch_user_photo_bg, daemon=True)
     t.start()
     return JSONResponse({"success": True, "message": "사진 재취득 시작됨"})
+
+
+# ─────────────────────────────────────────────
+# 상환/수령 스케줄 (차입금 상환 스케줄)
+# ─────────────────────────────────────────────
+
+@app.get("/repayment-schedule", response_class=HTMLResponse)
+def repayment_schedule_page(request: Request, db: Session = Depends(get_db)):
+    """상환/수령 스케줄 페이지 (목록 + 캘린더)"""
+    today = dt.now()
+    loan_names = crud.get_distinct_loan_names(db)
+    return templates.TemplateResponse("repayment_schedule.html", {
+        "request": request,
+        "today_year": today.year,
+        "today_month": today.month,
+        "loan_names": loan_names,
+    })
+
+
+@app.post("/api/repayment-schedule/upload")
+async def upload_repayment_schedule(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """신차입금현황 엑셀 업로드 → 상환스케줄 탭 파싱 → 전체 교체"""
+    try:
+        file_bytes = await file.read()
+        parsed = parse_repayment_schedule(file_bytes, password="7")
+        if not parsed:
+            return JSONResponse({"success": False, "message": "엑셀에서 회차 데이터를 찾지 못했습니다."}, status_code=400)
+        count = crud.replace_all_loan_repayments(db, parsed)
+        logger.info(f"상환스케줄 업로드 완료: {count}건")
+        return JSONResponse({"success": True, "inserted_count": count})
+    except Exception as e:
+        logger.exception("상환스케줄 업로드 실패")
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
+def _row_to_dict(row) -> dict:
+    return {
+        "id": row.id,
+        "block_index": row.block_index,
+        "loan_name": row.loan_name,
+        "installment_no": row.installment_no,
+        "original_due_date": row.original_due_date.isoformat() if row.original_due_date else None,
+        "adjusted_due_date": row.adjusted_due_date.isoformat() if row.adjusted_due_date else None,
+        "principal": float(row.principal) if row.principal is not None else None,
+        "interest": float(row.interest) if row.interest is not None else None,
+        "total_payment": float(row.total_payment) if row.total_payment is not None else None,
+        "remaining_principal": float(row.remaining_principal) if row.remaining_principal is not None else None,
+    }
+
+
+@app.get("/api/repayment-schedule")
+def list_repayment_schedule(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    loan_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """목록 뷰용 JSON 리스트 (기간/대출명 필터)"""
+    def _parse_date(s: Optional[str]) -> Optional[date]:
+        if not s:
+            return None
+        try:
+            return dt.strptime(s, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    rows = crud.list_loan_repayments(
+        db,
+        from_date=_parse_date(from_date),
+        to_date=_parse_date(to_date),
+        loan_name=loan_name or None,
+    )
+    return JSONResponse({"success": True, "items": [_row_to_dict(r) for r in rows]})
+
+
+@app.get("/api/repayment-schedule/calendar")
+def calendar_repayment_schedule(year: int, month: int, db: Session = Depends(get_db)):
+    """캘린더 뷰용: 날짜별 그룹 JSON"""
+    rows = crud.get_loan_repayments_by_month(db, year, month)
+    by_date: dict[str, list[dict]] = {}
+    for r in rows:
+        key = r.adjusted_due_date.isoformat()
+        by_date.setdefault(key, []).append(_row_to_dict(r))
+    return JSONResponse({"success": True, "year": year, "month": month, "by_date": by_date})
 
 
 # ─────────────────────────────────────────────

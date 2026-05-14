@@ -1,0 +1,125 @@
+"""
+신차입금현황 엑셀 파서.
+
+엑셀 구조 (시트 '상환스케줄'):
+- 각 차입금은 6개 데이터 행 + 1 빈 행 구분자로 구성
+- R(n)   A=대출명, B="회차",      C=빈,    D~=1,2,3,...
+- R(n+1) A=빈,    B="납입일",   C=실행일, D~=회차별 납입일
+- R(n+2) A=빈,    B="원금",     C=초기액, D~=회차별 원금
+- R(n+3) A=빈,    B="이자",     C=빈,     D~=회차별 이자
+- R(n+4) A=빈,    B="원리금",   C=빈,     D~=회차별 원리금
+- R(n+5) A=빈,    B="미회수원금", C=초기, D~=회차별 미회수원금
+- C 컬럼은 대출 실행일/초기액으로 스케줄 항목이 아님 → D 컬럼(idx 4)부터 수집
+"""
+
+from datetime import date, datetime
+from io import BytesIO
+from typing import Optional
+
+import msoffcrypto
+import openpyxl
+
+
+SHEET_NAME = "상환스케줄"
+DATA_START_COL = 4  # D 컬럼 (1-indexed)
+
+
+def _to_date(v) -> Optional[date]:
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    return None
+
+
+def _to_decimal(v) -> Optional[float]:
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    try:
+        return float(str(v).replace(",", "").strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def parse_repayment_schedule(file_bytes: bytes, password: str = "7") -> list[dict]:
+    """
+    신차입금현황 엑셀 → 회차별 dict 리스트로 변환.
+
+    반환 dict 키:
+      block_index, loan_name, installment_no,
+      original_due_date, principal, interest, total_payment, remaining_principal
+    """
+    # 비밀번호 복호화 시도 → 실패 시 일반 파일로 로드
+    try:
+        decrypted = BytesIO()
+        office = msoffcrypto.OfficeFile(BytesIO(file_bytes))
+        office.load_key(password=password)
+        office.decrypt(decrypted)
+        decrypted.seek(0)
+        wb = openpyxl.load_workbook(decrypted, data_only=True)
+    except Exception:
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
+    if SHEET_NAME not in wb.sheetnames:
+        raise ValueError(f"시트 '{SHEET_NAME}'가 엑셀에 없습니다.")
+    ws = wb[SHEET_NAME]
+
+    rows: list[dict] = []
+    block_index = 0
+
+    for r in range(1, ws.max_row + 1):
+        a = ws.cell(r, 1).value
+        b = ws.cell(r, 2).value
+        if not a or b != "회차":
+            continue
+
+        # 블록 시작 발견
+        block_index += 1
+        loan_name = str(a).strip()
+
+        # 헤더 행(r)에서 회차 번호들의 마지막 컬럼 위치 파악
+        last_col = DATA_START_COL - 1
+        for c in range(DATA_START_COL, ws.max_column + 1):
+            if ws.cell(r, c).value is not None:
+                last_col = c
+        if last_col < DATA_START_COL:
+            continue  # 회차 0건
+
+        # 라벨 행 검증
+        if ws.cell(r + 1, 2).value != "납입일":
+            continue
+        if ws.cell(r + 2, 2).value != "원금":
+            continue
+        if ws.cell(r + 3, 2).value != "이자":
+            continue
+        if ws.cell(r + 4, 2).value != "원리금":
+            continue
+        if ws.cell(r + 5, 2).value not in ("미회수 원금", "미회수원금"):
+            continue
+
+        for c in range(DATA_START_COL, last_col + 1):
+            inst_no = ws.cell(r, c).value
+            due_raw = ws.cell(r + 1, c).value
+            due = _to_date(due_raw)
+            if inst_no is None or due is None:
+                continue
+            try:
+                inst_no_int = int(inst_no)
+            except (ValueError, TypeError):
+                continue
+
+            rows.append({
+                "block_index": block_index,
+                "loan_name": loan_name,
+                "installment_no": inst_no_int,
+                "original_due_date": due,
+                "principal": _to_decimal(ws.cell(r + 2, c).value),
+                "interest": _to_decimal(ws.cell(r + 3, c).value),
+                "total_payment": _to_decimal(ws.cell(r + 4, c).value),
+                "remaining_principal": _to_decimal(ws.cell(r + 5, c).value),
+            })
+
+    return rows
