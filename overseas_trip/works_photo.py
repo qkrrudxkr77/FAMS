@@ -73,7 +73,8 @@ def _get_access_token() -> str:
     return token
 
 
-def _find_user_id_by_email(token: str, email: str) -> Optional[str]:
+def _find_user_by_email(token: str, email: str) -> Optional[dict]:
+    """Works API /users 목록에서 이메일로 사용자 dict 전체를 반환."""
     headers = {"Authorization": f"Bearer {token}"}
     for domain_id in WORKS_DOMAIN_IDS:
         cursor = None
@@ -88,19 +89,81 @@ def _find_user_id_by_email(token: str, email: str) -> Optional[str]:
                 timeout=15,
             )
             if not resp.ok:
-                logger.warning("[WorksPhoto] /users 조회 실패: domainId=%d status=%d", domain_id, resp.status_code)
+                logger.warning("[Works] /users 조회 실패: domainId=%d status=%d", domain_id, resp.status_code)
                 break
             data = resp.json()
             for user in data.get("users", []):
                 if user.get("email") == email:
-                    uid = user.get("userId")
-                    logger.info("[WorksPhoto] userId 발견: email=%s userId=%s", email, uid)
-                    return uid
+                    logger.info("[Works] user 발견: email=%s userId=%s", email, user.get("userId"))
+                    return user
             cursor = (data.get("responseMetaData") or {}).get("nextCursor")
             if not cursor:
                 break
-    logger.warning("[WorksPhoto] email로 userId를 찾지 못함: %s", email)
+    logger.warning("[Works] email로 user를 찾지 못함: %s", email)
     return None
+
+
+def _find_user_id_by_email(token: str, email: str) -> Optional[str]:
+    user = _find_user_by_email(token, email)
+    return user.get("userId") if user else None
+
+
+def _parse_user_info(user: dict) -> dict:
+    """
+    Works API user dict에서 이름·부서·직책·직급 파싱.
+
+    응답 구조 (repo-hub WorksUserResponse 참고):
+      user.userName.lastName + firstName → 이름
+      user.organizations[primary=true].orgUnits[primary=true].orgUnitName → 부서
+      user.organizations[primary=true].orgUnits[primary=true].positionName → 직책
+      user.organizations[primary=true].levelName → 직급
+    """
+    # 이름
+    user_name = user.get("userName") or {}
+    last = user_name.get("lastName") or ""
+    first = user_name.get("firstName") or ""
+    name = (last + first).strip() or user.get("nickName") or ""
+
+    # primary organization 찾기
+    orgs = user.get("organizations") or []
+    primary_org = next((o for o in orgs if o.get("primary")), orgs[0] if orgs else {})
+
+    level_name = primary_org.get("levelName") or ""
+
+    # primary orgUnit 찾기
+    org_units = primary_org.get("orgUnits") or []
+    primary_unit = next((u for u in org_units if u.get("primary")), org_units[0] if org_units else {})
+
+    dept_name = primary_unit.get("orgUnitName") or ""
+    position_name = primary_unit.get("positionName") or ""
+
+    return {
+        "name": name,
+        "dept_name": dept_name,
+        "position_name": position_name,
+        "level_name": level_name,
+    }
+
+
+def fetch_user_info(email: str) -> Optional[dict]:
+    """
+    LINE WORKS API로 이메일 사용자 정보(이름·부서·직책·직급) 반환.
+
+    Returns:
+        {"name": ..., "dept_name": ..., "position_name": ..., "level_name": ...}
+        또는 None (조회 실패 시)
+    """
+    try:
+        token = _get_access_token()
+        user = _find_user_by_email(token, email)
+        if not user:
+            return None
+        info = _parse_user_info(user)
+        logger.info("[Works] 사용자 정보 조회 완료: email=%s → %s", email, info)
+        return info
+    except Exception as e:
+        logger.warning("[Works] 사용자 정보 조회 실패: email=%s error=%s", email, e)
+        return None
 
 
 def fetch_photo_bytes(email: Optional[str] = None) -> Optional[bytes]:

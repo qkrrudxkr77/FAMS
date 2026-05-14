@@ -79,13 +79,22 @@ def validate_workthrough_token(token: str) -> WorkthroughTokenPayload:
         raise
 
 
-def create_fams_access_token(email: str, name: Optional[str] = None) -> str:
+def create_fams_access_token(
+    email: str,
+    name: Optional[str] = None,
+    dept_name: Optional[str] = None,
+    position_name: Optional[str] = None,
+    level_name: Optional[str] = None,
+) -> str:
     """
-    FAMS Access Token 생성.
+    FAMS Access Token 생성 (repo-hub RepoHubTokenPayload와 동일 구조).
 
     Args:
         email: 사용자 이메일
-        name: 사용자 이름 (선택)
+        name: 이름 (Works API에서 조회)
+        dept_name: 부서명
+        position_name: 직책 (부장, 팀장 등)
+        level_name: 직급 (선임, 수석 등)
 
     Returns:
         JWT Access Token
@@ -95,7 +104,10 @@ def create_fams_access_token(email: str, name: Optional[str] = None) -> str:
 
     payload = {
         'email': email,
-        'name': name,
+        'name': name or '',
+        'dept_name': dept_name or '',
+        'position_name': position_name or '',
+        'level_name': level_name or '',
         'iat': now,
         'exp': expire,
         'type': 'access'
@@ -107,7 +119,7 @@ def create_fams_access_token(email: str, name: Optional[str] = None) -> str:
         algorithm=FAMS_ALGORITHM
     )
 
-    logger.info(f"FAMS Access Token created: email={email}")
+    logger.info(f"FAMS Access Token created: email={email}, name={name}, dept={dept_name}")
     return token
 
 

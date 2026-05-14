@@ -195,6 +195,9 @@ async def auth_middleware(request: Request, call_next):
         payload = verify_fams_token(session_token)
         request.state.user_email = payload.get("email")
         request.state.user_name = payload.get("name")
+        request.state.user_dept = payload.get("dept_name")
+        request.state.user_position = payload.get("position_name")
+        request.state.user_level = payload.get("level_name")
     except jwt.InvalidTokenError:
         logger.warning(f"Invalid token: {path}")
         response = HTMLResponse(content=_unauthorized_html("세션이 만료되었습니다", "워크쓰루에서 FAMS 버튼을 통해 다시 접근해주세요."), status_code=401)
@@ -239,8 +242,18 @@ async def token_login(token: str):
         # Workthrough 토큰 검증
         wt_payload = validate_workthrough_token(token)
 
-        # FAMS Access Token 생성
-        access_token = create_fams_access_token(email=wt_payload.email)
+        # Works API에서 사용자 정보 조회 (이름·부서·직책·직급)
+        from overseas_trip.works_photo import fetch_user_info
+        user_info = fetch_user_info(wt_payload.email) or {}
+
+        # FAMS Access Token 생성 (사용자 정보 포함 — repo-hub RepoHubTokenPayload 동일 구조)
+        access_token = create_fams_access_token(
+            email=wt_payload.email,
+            name=user_info.get("name"),
+            dept_name=user_info.get("dept_name"),
+            position_name=user_info.get("position_name"),
+            level_name=user_info.get("level_name"),
+        )
 
         # RedirectResponse에 직접 쿠키 설정 (response 파라미터에 설정하면 쿠키가 사라짐)
         redirect = RedirectResponse(url="/", status_code=302)
@@ -249,13 +262,12 @@ async def token_login(token: str):
             value=access_token,
             max_age=24 * 3600,  # 24시간
             httponly=False,
-            # secure=True,  # HTTPS only (production에서만)
             samesite="lax"
         )
 
-        logger.info(f"User logged in: {wt_payload.email}")
+        logger.info(f"User logged in: {wt_payload.email} ({user_info.get('name')} / {user_info.get('dept_name')})")
 
-        # 로그인한 사용자의 프로필 사진을 백그라운드에서 가져옴
+        # 프로필 사진을 백그라운드에서 가져옴
         if wt_payload.email not in _user_photo_cache:
             t = threading.Thread(target=_fetch_user_photo_bg, args=(wt_payload.email,), daemon=True)
             t.start()
@@ -312,6 +324,13 @@ def index(
             "total_airfare": total_airfare,
             "ticketed": ticketed,
             "cancelled": cancelled,
+        },
+        "current_user": {
+            "email": getattr(request.state, "user_email", ""),
+            "name": getattr(request.state, "user_name", ""),
+            "dept": getattr(request.state, "user_dept", ""),
+            "position": getattr(request.state, "user_position", ""),
+            "level": getattr(request.state, "user_level", ""),
         },
     })
 

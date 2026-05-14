@@ -61,8 +61,12 @@
         onerror="this.style.display='none';">
     </div>
     <div class="user-info">
-      <div class="user-name">박병훈 부장 <span style="color:#94a3b8;font-weight:400;font-size:11px">HR팀</span></div>
-      <div class="user-meta">marinhoon@bodyfriend.co.kr</div>
+      <div class="user-name">
+        {{ current_user.name or current_user.email.split('@')[0] }}
+        {% if current_user.position %} {{ current_user.position }}{% endif %}
+        {% if current_user.dept %}<span style="color:#94a3b8;font-weight:400;font-size:11px"> {{ current_user.dept }}</span>{% endif %}
+      </div>
+      <div class="user-meta">{{ current_user.email }}</div>
     </div>
   </div>
   <div class="sidebar-logout">
