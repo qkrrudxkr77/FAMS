@@ -25,7 +25,7 @@ from overseas_trip.db import get_db, init_db
 from overseas_trip.scheduler import start_scheduler, stop_scheduler
 from overseas_trip import crud
 from overseas_trip.auth import validate_workthrough_token, create_fams_access_token, create_fams_refresh_token, verify_fams_token, get_current_user_email
-from overseas_trip.excel_parser import parse_repayment_schedule
+from overseas_trip.excel_parser import parse_repayment_schedule, parse_financial_products
 import jwt
 from datetime import date, datetime as dt
 
@@ -264,13 +264,13 @@ async def token_login(token: str):
     except jwt.InvalidTokenError as e:
         logger.error(f"Token login failed: {e}")
         return HTMLResponse(
-            content="<h2>토큰 인증 실패</h2><p>유효하지 않거나 만료된 토큰입니다. 워크쓰루에서 다시 접근해주세요.</p>",
+            content=_unauthorized_html("토큰 인증 실패", "유효하지 않거나 만료된 토큰입니다.<br>워크쓰루에서 다시 접근해주세요."),
             status_code=401
         )
     except Exception as e:
         logger.error(f"Login error: {e}")
         return HTMLResponse(
-            content=f"<h2>로그인 오류</h2><p>{str(e)}</p>",
+            content=_unauthorized_html("로그인 오류", str(e)),
             status_code=400
         )
 
@@ -279,7 +279,7 @@ async def token_login(token: str):
 async def logout():
     """로그아웃 (쿠키 삭제)"""
     response = HTMLResponse(
-        content="<h2>로그아웃 완료</h2><p>워크쓰루에서 FAMS 버튼을 통해 다시 접근해주세요.</p>",
+        content=_unauthorized_html("로그아웃 완료", "워크쓰루에서 FAMS 버튼을 통해 다시 접근해주세요."),
         status_code=200
     )
     response.delete_cookie("session_token")
@@ -546,7 +546,7 @@ async def upload_repayment_schedule(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    """신차입금현황 엑셀 업로드 → 상환스케줄 탭 파싱 → 전체 교체"""
+    """신차입금현황 엑셀 업로드 → 상환스케줄만 파싱 저장 (금융상품 별도 스케줄 관리)"""
     try:
         file_bytes = await file.read()
         parsed = parse_repayment_schedule(file_bytes, password="7")
@@ -643,6 +643,21 @@ async def sync_financial_products(db: Session = Depends(get_db)):
     except Exception as e:
         logger.exception("금융상품 동기화 실패")
         return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+
+
+@app.post("/api/financial-product/upload")
+async def upload_financial_products(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """금융상품 엑셀 업로드 → DB 전체 교체"""
+    file_bytes = await file.read()
+    try:
+        products = parse_financial_products(file_bytes)
+    except ValueError as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=400)
+    if not products:
+        return JSONResponse({"success": False, "message": "파싱된 데이터가 없습니다. 헤더(은행/비고 컬럼)를 확인해주세요."}, status_code=400)
+    count = crud.replace_all_financial_products(db, products)
+    logger.info(f"금융상품 엑셀 업로드 완료: {count}건")
+    return JSONResponse({"success": True, "inserted_count": count})
 
 
 @app.get("/api/financial-product")
