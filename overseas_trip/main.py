@@ -119,35 +119,30 @@ def _unauthorized_html(title: str, message: str) -> str:
 import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 워크쓰루 프로필 사진 캐시 (bytes, content-type)
-_user_photo_cache: Optional[bytes] = None
-_user_photo_content_type: str = "image/jpeg"
+# 워크쓰루 프로필 사진 캐시 - 이메일별 딕셔너리
+# { email: {"data": bytes, "content_type": str} }
+_user_photo_cache: dict = {}
 
 
-def _fetch_user_photo_bg() -> None:
-    """백그라운드에서 LINE WORKS API로 프로필 사진을 가져와 캐시에 저장"""
-    global _user_photo_cache, _user_photo_content_type
+def _fetch_user_photo_bg(email: str) -> None:
+    """백그라운드에서 LINE WORKS API로 특정 사용자의 프로필 사진을 가져와 캐시에 저장"""
     try:
         from overseas_trip.works_photo import fetch_photo_bytes
-        data = fetch_photo_bytes()
+        data = fetch_photo_bytes(email=email)
         if data:
-            if data[:4] == b'\x89PNG':
-                _user_photo_content_type = "image/png"
-            _user_photo_cache = data
-            logger.info("LINE WORKS 프로필 사진 캐시 완료 (%d bytes)", len(data))
+            content_type = "image/png" if data[:4] == b'\x89PNG' else "image/jpeg"
+            _user_photo_cache[email] = {"data": data, "content_type": content_type}
+            logger.info("LINE WORKS 프로필 사진 캐시 완료: email=%s (%d bytes)", email, len(data))
         else:
-            logger.warning("LINE WORKS 프로필 사진 없음 - 텍스트 아바타 사용")
+            logger.warning("LINE WORKS 프로필 사진 없음: email=%s", email)
     except Exception as e:
-        logger.warning("프로필 사진 취득 실패: %s", e)
+        logger.warning("프로필 사진 취득 실패: email=%s error=%s", email, e)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     start_scheduler()
-    # 프로필 사진은 비동기로 백그라운드에서 가져옴 (앱 시작을 막지 않음)
-    t = threading.Thread(target=_fetch_user_photo_bg, daemon=True)
-    t.start()
     yield
     stop_scheduler()
 
@@ -259,6 +254,12 @@ async def token_login(token: str):
         )
 
         logger.info(f"User logged in: {wt_payload.email}")
+
+        # 로그인한 사용자의 프로필 사진을 백그라운드에서 가져옴
+        if wt_payload.email not in _user_photo_cache:
+            t = threading.Thread(target=_fetch_user_photo_bg, args=(wt_payload.email,), daemon=True)
+            t.start()
+
         return redirect
 
     except jwt.InvalidTokenError as e:
@@ -505,21 +506,26 @@ def get_status():
 
 
 @app.get("/api/user-photo")
-def get_user_photo():
-    """워크쓰루 프로필 사진 프록시. 캐시 없으면 204 반환"""
-    if _user_photo_cache:
+def get_user_photo(request: Request):
+    """로그인한 사용자의 프로필 사진 반환. 캐시 없으면 204 반환"""
+    email = getattr(request.state, "user_email", None)
+    if email and email in _user_photo_cache:
+        cached = _user_photo_cache[email]
         return Response(
-            content=_user_photo_cache,
-            media_type=_user_photo_content_type,
+            content=cached["data"],
+            media_type=cached["content_type"],
             headers={"Cache-Control": "max-age=3600"},
         )
     return Response(status_code=204)
 
 
 @app.post("/api/refresh-photo")
-def refresh_user_photo():
-    """프로필 사진 강제 재취득"""
-    t = threading.Thread(target=_fetch_user_photo_bg, daemon=True)
+def refresh_user_photo(request: Request):
+    """로그인한 사용자의 프로필 사진 강제 재취득"""
+    email = getattr(request.state, "user_email", None)
+    if not email:
+        return JSONResponse({"success": False, "message": "인증 필요"}, status_code=401)
+    t = threading.Thread(target=_fetch_user_photo_bg, args=(email,), daemon=True)
     t.start()
     return JSONResponse({"success": True, "message": "사진 재취득 시작됨"})
 
