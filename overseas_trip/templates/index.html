@@ -55,7 +55,7 @@
   </ul>
   <div class="sidebar-user">
     <div class="user-avatar">
-      <span id="userPhotoFallback" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;">박</span>
+      <span id="userPhotoFallback" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;">{{ (current_user.name or current_user.email)[0] }}</span>
       <img src="/api/user-photo" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;"
         onload="if(this.naturalWidth>0){this.style.display='block';document.getElementById('userPhotoFallback').style.display='none';}"
         onerror="this.style.display='none';">

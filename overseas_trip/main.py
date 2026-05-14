@@ -526,27 +526,51 @@ def get_status():
 
 @app.get("/api/user-photo")
 def get_user_photo(request: Request):
-    """로그인한 사용자의 프로필 사진 반환. 캐시 없으면 204 반환"""
+    """
+    로그인한 사용자의 프로필 사진 반환 (repo-hub GET /me/photo 와 동일 방식).
+
+    캐시 히트 → 즉시 반환
+    캐시 미스 → Works API 동기 조회 → 캐시 저장 → 반환
+    사진 없음 → 204
+    """
     email = getattr(request.state, "user_email", None)
-    if email and email in _user_photo_cache:
+    if not email:
+        return Response(status_code=204)
+
+    # 캐시 히트
+    if email in _user_photo_cache:
         cached = _user_photo_cache[email]
         return Response(
             content=cached["data"],
             media_type=cached["content_type"],
             headers={"Cache-Control": "max-age=3600"},
         )
+
+    # 캐시 미스 → Works API 동기 조회 (repo-hub 방식)
+    from overseas_trip.works_photo import fetch_photo_bytes
+    data = fetch_photo_bytes(email=email)
+    if data:
+        content_type = "image/png" if data[:4] == b'\x89PNG' else "image/jpeg"
+        _user_photo_cache[email] = {"data": data, "content_type": content_type}
+        logger.info("프로필 사진 동기 조회 완료: email=%s (%d bytes)", email, len(data))
+        return Response(
+            content=data,
+            media_type=content_type,
+            headers={"Cache-Control": "max-age=3600"},
+        )
+
     return Response(status_code=204)
 
 
 @app.post("/api/refresh-photo")
 def refresh_user_photo(request: Request):
-    """로그인한 사용자의 프로필 사진 강제 재취득"""
+    """로그인한 사용자의 프로필 사진 캐시 삭제 후 재취득"""
     email = getattr(request.state, "user_email", None)
     if not email:
         return JSONResponse({"success": False, "message": "인증 필요"}, status_code=401)
-    t = threading.Thread(target=_fetch_user_photo_bg, args=(email,), daemon=True)
-    t.start()
-    return JSONResponse({"success": True, "message": "사진 재취득 시작됨"})
+    # 캐시 삭제 → 다음 /api/user-photo 요청 시 자동으로 재조회
+    _user_photo_cache.pop(email, None)
+    return JSONResponse({"success": True, "message": "다음 페이지 로드 시 사진이 갱신됩니다."})
 
 
 # ─────────────────────────────────────────────
