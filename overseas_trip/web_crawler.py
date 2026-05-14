@@ -119,27 +119,30 @@ def _parse_financial_table(html: str) -> list[dict]:
 
     for row in rows[1:]:  # 헤더 행 제외
         cells = row.find_all('td')
-        if len(cells) < 4:  # 최소 필드 개수
+        # 실제 테이블 구조: 은행(0) 계좌명(1) 상품명(2) 전일잔액(3) 증가(4) 감소(5) 당일잔액(6) 비고(7)
+        if len(cells) < 8:
             continue
 
         try:
-            # 셀 인덱스는 테이블 구조에 따라 조정 필요
-            # 예상 구조: [상품명, 은행/증권사, 잔액, 종료일자, ...]
-            company_name = cells[0].get_text(strip=True)  # 예: "한국투자증권"
-            product_name = cells[1].get_text(strip=True)  # 예: "IMA 금융상품"
-            amount_str = cells[2].get_text(strip=True)    # 예: "1,000,000"
-            maturity_str = cells[3].get_text(strip=True)  # 예: "2026.12.25" 또는 "12.25"
+            company_name = cells[0].get_text(strip=True)        # 은행 (표시에 사용)
+            account_name = cells[1].get_text(strip=True)        # 계좌명 (표시에 사용)
+            product_name_raw = cells[2].get_text(strip=True)    # 상품명 (코드 생성에만 사용)
+            amount_str = cells[6].get_text(strip=True)          # 당일잔액
+            bigo_str = cells[7].get_text(strip=True)            # 비고 (만기일 포함)
+
+            # 표시명은 계좌명을 사용: "농협 현대해상화재보험 금융상품 수령"
+            product_name = account_name
 
             # 금액 파싱 (쉼표 제거)
             amount = float(amount_str.replace(',', '').strip())
 
-            # 날짜 파싱
-            maturity_date = _parse_date(maturity_str)
+            # 비고에서 만기일 추출 ("START~END(설명)" 형식)
+            maturity_date = _parse_date_from_bigo(bigo_str)
             if not maturity_date:
                 continue
 
-            # 상품 코드 생성 (company_name + product_name 조합)
-            product_code = f"{company_name}_{product_name}".replace(' ', '')
+            # 상품 코드 생성 (회사+계좌+상품 조합으로 유니크하게)
+            product_code = f"{company_name}_{account_name}_{product_name_raw}".replace(' ', '')
 
             products.append({
                 "product_code": product_code,
@@ -149,11 +152,32 @@ def _parse_financial_table(html: str) -> list[dict]:
                 "original_maturity_date": maturity_date,
             })
 
-        except (IndexError, ValueError) as e:
-            # 파싱 실패한 행은 스킵
+        except (IndexError, ValueError):
             continue
 
     return products
+
+
+def _parse_date_from_bigo(bigo: str) -> Optional[date]:
+    """
+    비고 컬럼에서 만기일(종료일) 추출.
+    형식 예:
+      "2024.06.21~2027.06.21(2년남 3년만기)"  → 2027.06.21
+      "2026.02.02~2026.12.02, 수익률 연 9.2%" → 2026.12.02
+      "2026.04.07~2028.10.10, 수익률 연 4%"   → 2028.10.10
+    """
+    if not bigo:
+        return None
+    if '~' in bigo:
+        after = bigo.split('~', 1)[1].strip()
+        # "(", ",", " " 이전까지 날짜 부분만 추출
+        for sep in ['(', ',', ' ']:
+            if sep in after:
+                after = after.split(sep)[0].strip()
+        return _parse_date(after)
+    # "~" 없으면 전체에서 날짜 파싱 시도
+    candidate = bigo.split('(')[0].split(',')[0].strip()
+    return _parse_date(candidate)
 
 
 def _parse_date(date_str: str) -> Optional[date]:

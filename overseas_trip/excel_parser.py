@@ -123,3 +123,102 @@ def parse_repayment_schedule(file_bytes: bytes, password: str = "7") -> list[dic
             })
 
     return rows
+
+
+def _parse_maturity_from_bigo(bigo: str) -> Optional[date]:
+    """비고 컬럼에서 만기일 추출: "시작~종료(설명)" 또는 "YYYY.MM.DD" 형식"""
+    if not bigo:
+        return None
+    s = str(bigo).strip()
+    if '~' in s:
+        after = s.split('~', 1)[1].strip()
+        for sep in ['(', ',', ' ']:
+            if sep in after:
+                after = after.split(sep)[0].strip()
+        s = after
+    else:
+        s = s.split('(')[0].split(',')[0].strip()
+    parts = s.split('.')
+    try:
+        if len(parts) == 3:
+            return date(int(parts[0]), int(parts[1]), int(parts[2]))
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def parse_financial_products(file_bytes: bytes) -> list[dict]:
+    """
+    금융상품 엑셀 파싱.
+
+    지원 형식:
+      헤더행: 은행 | 계좌명 | 상품명 | 전일잔액 | 증가 | 감소 | 당일잔액 | 비고
+      (헤더 순서는 컬럼명으로 자동 탐색)
+
+    반환 dict 키:
+      product_code, company_name, product_name, amount, original_maturity_date
+    """
+    try:
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
+    except Exception as e:
+        raise ValueError(f"엑셀 파일을 열 수 없습니다: {e}")
+
+    results = []
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+
+        # 헤더 행 탐색 (은행/비고 컬럼이 있는 행)
+        header_row = None
+        col_map: dict[str, int] = {}
+        for r in range(1, min(ws.max_row + 1, 30)):
+            row_vals = [str(ws.cell(r, c).value or '').strip() for c in range(1, ws.max_column + 1)]
+            if '은행' in row_vals and '비고' in row_vals:
+                header_row = r
+                for idx, val in enumerate(row_vals, start=1):
+                    col_map[val] = idx
+                break
+
+        if not header_row or '은행' not in col_map or '비고' not in col_map:
+            continue
+
+        c_company = col_map.get('은행')
+        c_account = col_map.get('계좌명')
+        c_product = col_map.get('상품명')
+        c_amount  = col_map.get('당일잔액') or col_map.get('전일잔액')
+        c_bigo    = col_map.get('비고')
+
+        for r in range(header_row + 1, ws.max_row + 1):
+            company = str(ws.cell(r, c_company).value or '').strip()
+            if not company or company in ('소계', '합계', ''):
+                continue
+
+            account  = str(ws.cell(r, c_account).value or '').strip() if c_account else ''
+            prod_raw = str(ws.cell(r, c_product).value or '').strip() if c_product else ''
+            product  = prod_raw if prod_raw and prod_raw != '-' else account
+
+            amount_raw = ws.cell(r, c_amount).value if c_amount else None
+            amount = _to_decimal(amount_raw)
+            if amount is None:
+                continue
+
+            bigo_val = ws.cell(r, c_bigo).value
+            # 날짜 객체로 직접 들어올 수도 있음
+            if isinstance(bigo_val, (date, datetime)):
+                maturity = bigo_val.date() if isinstance(bigo_val, datetime) else bigo_val
+            else:
+                maturity = _parse_maturity_from_bigo(str(bigo_val or ''))
+
+            if not maturity:
+                continue
+
+            product_code = f"{company}_{account}_{prod_raw}".replace(' ', '')
+            results.append({
+                "product_code": product_code,
+                "company_name": company,
+                "product_name": product,
+                "amount": amount,
+                "original_maturity_date": maturity,
+            })
+
+    return results
