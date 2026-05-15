@@ -2,7 +2,8 @@
 from datetime import date
 from typing import Optional
 from sqlalchemy.orm import Session
-from overseas_trip.models import OverseasTripExpense, LoanRepayment, FinancialProduct
+from datetime import datetime
+from overseas_trip.models import OverseasTripExpense, LoanRepayment, FinancialProduct, CardStatement
 from overseas_trip.holiday_util import next_business_day
 
 
@@ -275,4 +276,90 @@ def get_distinct_company_names(db: Session) -> list[str]:
     rows = db.query(FinancialProduct.company_name).distinct().filter(
         FinancialProduct.is_active == 1
     ).order_by(FinancialProduct.company_name.asc()).all()
+    return [r[0] for r in rows]
+
+
+# ─────────────────────────────────────────────
+# 카드사 결제대금 (card_statement) - 누적 보관 (Upsert)
+# ─────────────────────────────────────────────
+
+def upsert_card_statement(
+    db: Session,
+    card_company: str,
+    payment_amount: float,
+    original_payment_date: date,
+    crawl_source: str = "3bday",
+) -> CardStatement:
+    """
+    카드사 결제대금 Upsert: (card_company, original_payment_date) 기준 중복 체크.
+    - 신규: INSERT
+    - 기존: payment_amount, crawl_source, crawled_at 갱신
+    영업일 조정된 adjusted_payment_date도 함께 계산/저장.
+    """
+    adjusted = next_business_day(original_payment_date)
+
+    existing = db.query(CardStatement).filter(
+        CardStatement.card_company == card_company,
+        CardStatement.original_payment_date == original_payment_date,
+    ).first()
+
+    if existing:
+        existing.payment_amount = payment_amount
+        existing.adjusted_payment_date = adjusted
+        existing.crawl_source = crawl_source
+        existing.crawled_at = datetime.now()
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    row = CardStatement(
+        card_company=card_company,
+        payment_amount=payment_amount,
+        original_payment_date=original_payment_date,
+        adjusted_payment_date=adjusted,
+        crawl_source=crawl_source,
+        crawled_at=datetime.now(),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def list_card_statements(
+    db: Session,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    card_company: Optional[str] = None,
+) -> list[CardStatement]:
+    """기간/카드사 필터로 결제대금 조회 (adjusted_payment_date 기준)"""
+    q = db.query(CardStatement)
+    if from_date:
+        q = q.filter(CardStatement.adjusted_payment_date >= from_date)
+    if to_date:
+        q = q.filter(CardStatement.adjusted_payment_date <= to_date)
+    if card_company:
+        q = q.filter(CardStatement.card_company == card_company)
+    return q.order_by(
+        CardStatement.adjusted_payment_date.asc(),
+        CardStatement.card_company.asc(),
+    ).all()
+
+
+def get_card_statements_by_month(db: Session, year: int, month: int) -> list[CardStatement]:
+    """캘린더용: 해당 월의 adjusted_payment_date 기반 전체 항목"""
+    from calendar import monthrange
+    last_day = monthrange(year, month)[1]
+    return list_card_statements(
+        db,
+        from_date=date(year, month, 1),
+        to_date=date(year, month, last_day),
+    )
+
+
+def get_distinct_card_companies(db: Session) -> list[str]:
+    """필터 드롭다운용: distinct 카드사명 (사전순)"""
+    rows = db.query(CardStatement.card_company).distinct().order_by(
+        CardStatement.card_company.asc()
+    ).all()
     return [r[0] for r in rows]

@@ -40,3 +40,44 @@ def next_business_day(d: date) -> date:
     while d.weekday() >= 5 or d in KR_HOLIDAYS:
         d += timedelta(days=1)
     return d
+
+
+def is_business_day(d: date) -> bool:
+    """주어진 날짜가 영업일인지 (평일 + 공휴일 아님)"""
+    return d.weekday() < 5 and d not in KR_HOLIDAYS
+
+
+def get_nth_business_day(year: int, month: int, n: int) -> date:
+    """
+    해당 월의 N번째 영업일 반환.
+    예: 2026년 6월 3영업일
+      6/1(월) = 1번째, 6/2(화) = 2번째, 6/3(수)=공휴일 스킵, 6/4(목) = 3번째
+    """
+    d = date(year, month, 1)
+    count = 0
+    while True:
+        if is_business_day(d):
+            count += 1
+            if count == n:
+                return d
+        # 같은 달 안에서만 카운트
+        next_day = d + timedelta(days=1)
+        if next_day.month != month:
+            raise ValueError(f"{year}년 {month}월에 {n}번째 영업일이 없습니다.")
+        d = next_day
+
+
+def business_day_number_of_month(d: date) -> int:
+    """
+    주어진 날짜가 해당 월의 몇 번째 영업일인지 반환.
+    영업일이 아니면 0 반환.
+    """
+    if not is_business_day(d):
+        return 0
+    count = 0
+    cursor = date(d.year, d.month, 1)
+    while cursor <= d:
+        if is_business_day(cursor):
+            count += 1
+        cursor += timedelta(days=1)
+    return count

@@ -103,3 +103,22 @@ class FinancialProduct(Base):
     adjusted_maturity_date = Column(Date, nullable=False, comment="영업일 조정 후 만기일 (주말/공휴일이면 다음 영업일)")
     is_active = Column(Integer, default=1, comment="활성 여부 (1=활성, 0=비활성)")
     synced_at = Column(DateTime, server_default=func.now(), comment="동기화 일시")
+
+
+class CardStatement(Base):
+    """카드사 결제대금 (매달 3영업일/6영업일 자동 크롤링, 누적 보관)"""
+    __tablename__ = "card_statement"
+    __table_args__ = (
+        UniqueConstraint("card_company", "original_payment_date", name="uq_card_payment"),
+        Index("ix_card_statement_adjusted", "adjusted_payment_date"),
+        Index("ix_card_statement_company", "card_company"),
+        {"comment": "카드사 결제대금 — 매달 3영업일/6영업일 자동 크롤링 후 누적 보관"},
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True, comment="PK")
+    card_company = Column(String(50), nullable=False, comment="카드사명 (예: 삼성카드)")
+    payment_amount = Column(DECIMAL(18, 2), nullable=False, comment="결제대금 (합계)")
+    original_payment_date = Column(Date, nullable=False, comment="원본 결제일 (카드사 고정 결제일)")
+    adjusted_payment_date = Column(Date, nullable=False, comment="영업일 조정 후 결제일 (주말/공휴일이면 다음 영업일)")
+    crawl_source = Column(String(20), nullable=True, comment="크롤링 시점 (3bday/6bday)")
+    crawled_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), comment="크롤링/갱신 일시")
