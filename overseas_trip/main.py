@@ -159,6 +159,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
@@ -239,6 +240,25 @@ async def auth_middleware(request: Request, call_next):
         return response
 
     response = await call_next(request)
+    return response
+
+
+# Chrome PNA(Private Network Access) 대응 미들웨어 - 가장 바깥에서 모든 응답에 헤더 추가
+# 사설망 IP(172.30.x.x)로 접속 시 브라우저가 차단하는 것 방지
+@app.middleware("http")
+async def add_private_network_headers(request: Request, call_next):
+    # Preflight OPTIONS 요청은 인증/엔드포인트 거치지 않고 즉시 200 응답
+    if request.method == "OPTIONS":
+        response = Response(status_code=200)
+    else:
+        response = await call_next(request)
+
+    # PNA 허용 헤더 + CORS 헤더 강제 추가 (모든 응답에 적용)
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Max-Age"] = "86400"
     return response
 
 
