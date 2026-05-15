@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Workthrough SSO 토큰 검증 및 FAMS JWT 발급.
 

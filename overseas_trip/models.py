@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Date, DateTime, Text, DECIMAL, UniqueConstraint, Index
 from sqlalchemy.sql import func

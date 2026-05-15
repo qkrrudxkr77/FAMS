@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from datetime import date
 from typing import Optional
 from sqlalchemy.orm import Session

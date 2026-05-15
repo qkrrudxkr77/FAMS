@@ -40,6 +40,15 @@
       border-radius:6px; font-size:12px; font-weight:600; color:var(--text-primary);
     }
     .calendar-today-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .calendar-selector {
+      display:flex; gap:6px; align-items:center;
+    }
+    .calendar-selector select {
+      padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:6px;
+      font-size:12px; color:var(--text-primary); cursor:pointer; transition:all .15s;
+    }
+    .calendar-selector select:hover { border-color:var(--primary); }
+    .calendar-selector select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(59, 130, 246, 0.1); }
 
     .calendar-grid { display:grid; grid-template-columns: repeat(7, 1fr); }
     .calendar-dow {
@@ -62,6 +71,9 @@
     .calendar-cell.today { background:#eff6ff; }
     .calendar-cell.selected { background:#dbeafe; box-shadow: inset 0 0 0 2px var(--primary); }
     .calendar-cell.has-items { font-weight:600; }
+    .calendar-cell.holiday { border-top: 3px solid var(--danger); }
+    .calendar-cell.holiday .cell-date { color:var(--danger); font-weight:700; }
+    .holiday-badge { display:inline-block; font-size:9px; font-weight:700; color:#000; background:none; padding:0; border-radius:0; margin-top:2px; }
 
     .cell-date { font-size:13px; font-weight:600; }
     .cell-date.sun { color:var(--danger); }
@@ -74,6 +86,12 @@
       background:var(--danger); color:#fff; border-radius:10px; align-self:flex-start;
     }
     .cell-count.receipt { background:var(--success); }
+    .calendar-cell.holiday .cell-count {
+      background:#1c69d4; /* 공휴일 셀의 상환 건수는 파란색 */
+    }
+    .calendar-cell.holiday .cell-count.receipt {
+      background:var(--success); /* 수령 건수는 초록색 유지 */
+    }
     .cell-total { font-size:10px; color:var(--text-secondary); font-weight:500; }
 
     /* 사이드 패널 */
@@ -301,6 +319,7 @@
             <button id="nextMonth" title="다음 달">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
+            <input type="text" id="datePickerInput" placeholder="년도-월-일" style="width:120px; padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:6px; font-size:12px; color:var(--text-primary); cursor:pointer;">
           </div>
         </div>
         <div class="calendar-grid">
@@ -345,6 +364,8 @@ const fmt = (n) => n == null ? '-' : Number(n).toLocaleString('ko-KR');
 const pad = (n) => String(n).padStart(2, '0');
 const dateKey = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
 
+let holidays = {}; // API에서 동적으로 로드됨
+
 /* ── 뷰 토글 ── */
 document.querySelectorAll('#viewToggle button').forEach(btn => {
   btn.onclick = () => {
@@ -358,8 +379,22 @@ document.querySelectorAll('#viewToggle button').forEach(btn => {
   };
 });
 
+/* ── 공휴일 로드 ── */
+async function loadHolidays(year) {
+  try {
+    const res = await fetch(`/api/holidays/${year}`);
+    const json = await res.json();
+    if (json.success) {
+      holidays = json.holidays || {};
+    }
+  } catch (err) {
+    console.error('공휴일 로드 실패:', err);
+  }
+}
+
 /* ── 캘린더 렌더 ── */
 async function loadCalendar() {
+  await loadHolidays(currentYear);
   const [repRes, recRes] = await Promise.all([
     fetch(`/api/repayment-schedule/calendar?year=${currentYear}&month=${currentMonth}`),
     fetch(`/api/financial-product/calendar?year=${currentYear}&month=${currentMonth}`),
@@ -403,6 +438,7 @@ function renderCalendar() {
     if (key === todayKey) cell.classList.add('today');
     if (key === selectedDateKey) cell.classList.add('selected');
     if (items.length || (calendarReceiptData[key] || []).length) cell.classList.add('has-items');
+    if (holidays[key]) cell.classList.add('holiday');
 
     const wd = new Date(currentYear, currentMonth - 1, d).getDay();
     const dateClass = wd === 0 ? 'sun' : (wd === 6 ? 'sat' : '');
@@ -411,8 +447,10 @@ function renderCalendar() {
     const total = items.reduce((s, it) => s + (it.total_payment || 0), 0);
     const recTotal = receiptItems.reduce((s, it) => s + (it.amount || 0), 0);
     const hasAny = items.length || receiptItems.length;
+    const holidayName = holidays[key];
     cell.innerHTML = `
       <div class="cell-date ${dateClass}">${d}</div>
+      ${holidayName ? `<div class="holiday-badge">${holidayName}</div>` : ''}
       ${hasAny ? `
         <div class="cell-summary">
           ${items.length ? `<span class="cell-count">${items.length}건</span>` : ''}
@@ -519,20 +557,40 @@ document.getElementById('todayBtn').onclick = () => {
   const now = new Date();
   currentYear = now.getFullYear();
   currentMonth = now.getMonth() + 1;
-  selectedDateKey = null;
-  loadCalendar();
-  renderDayPanel();
+  const todayKey = dateKey(currentYear, currentMonth, now.getDate());
+  loadCalendar().then(() => selectDate(todayKey));
 };
+
+/* ── 날짜 선택 초기화 및 핸들러 ── */
+function initializeSelectors() {
+  const datePickerInput = document.getElementById('datePickerInput');
+
+  // 기본값 설정
+  const defaultDate = `${currentYear}-${pad(currentMonth)}-01`;
+  datePickerInput.value = defaultDate;
+
+  // 날짜 변경 핸들러
+  datePickerInput.onchange = () => {
+    const selectedDate = datePickerInput.value;
+    if (!selectedDate) return;
+    const [y, m, d] = selectedDate.split('-');
+    currentYear = parseInt(y);
+    currentMonth = parseInt(m);
+    loadCalendar().then(() => selectDate(selectedDate));
+  };
+}
 
 /* ── 날짜별 그룹 목록 ── */
 async function loadListGrouped() {
   const container = document.getElementById('listSections');
   container.innerHTML = '<div style="text-align:center;padding:60px 0;color:var(--text-secondary);font-size:13px;">불러오는 중...</div>';
 
-  // 상환 + 수령 두 API 병렬 호출
+  // 올해 1월 1일부터만 조회
+  const thisYear = new Date().getFullYear();
+  const fromDate = `${thisYear}-01-01`;
   const [repRes, recRes] = await Promise.all([
-    fetch('/api/repayment-schedule'),
-    fetch('/api/financial-product'),
+    fetch(`/api/repayment-schedule?from_date=${fromDate}`),
+    fetch(`/api/financial-product?from_date=${fromDate}`),
   ]);
   const repJson = await repRes.json();
   const recJson = await recRes.json();
@@ -711,7 +769,12 @@ async function doLogout() {
 }
 
 /* ── 초기 로드 ── */
-loadCalendar();
+initializeSelectors();
+loadCalendar().then(() => {
+  const now = new Date();
+  const todayKey = dateKey(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  selectDate(todayKey);
+});
 </script>
 </body>
 </html>

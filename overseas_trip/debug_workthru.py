@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 워크쓰루 페이지 구조 디버그 스크립트.
 실행: python -m overseas_trip.debug_workthru

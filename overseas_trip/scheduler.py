@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 APScheduler 자동화 스케줄러.
 
