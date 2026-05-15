@@ -319,7 +319,10 @@
             <button id="nextMonth" title="다음 달">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
-            <input type="text" id="datePickerInput" placeholder="년도-월-일" style="width:120px; padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:6px; font-size:12px; color:var(--text-primary); cursor:pointer;">
+            <div class="calendar-selector">
+              <select id="yearSelector" title="연도 선택"></select>
+              <select id="monthSelector" title="월 선택"></select>
+            </div>
           </div>
         </div>
         <div class="calendar-grid">
@@ -408,6 +411,7 @@ async function loadCalendar() {
 
 function renderCalendar() {
   document.getElementById('calendarTitle').textContent = `${currentYear}년 ${currentMonth}월`;
+  if (typeof syncSelectors === 'function') syncSelectors();
   const grid = document.getElementById('calendarGrid');
   grid.innerHTML = '';
 
@@ -561,23 +565,47 @@ document.getElementById('todayBtn').onclick = () => {
   loadCalendar().then(() => selectDate(todayKey));
 };
 
-/* ── 날짜 선택 초기화 및 핸들러 ── */
+/* ── 연/월 드롭다운 초기화 및 핸들러 ── */
 function initializeSelectors() {
-  const datePickerInput = document.getElementById('datePickerInput');
+  const yearSel = document.getElementById('yearSelector');
+  const monthSel = document.getElementById('monthSelector');
 
-  // 기본값 설정
-  const defaultDate = `${currentYear}-${pad(currentMonth)}-01`;
-  datePickerInput.value = defaultDate;
+  // 연도: 현재년도 -5 ~ +5
+  const nowYear = new Date().getFullYear();
+  yearSel.innerHTML = '';
+  for (let y = nowYear - 5; y <= nowYear + 5; y++) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = `${y}년`;
+    if (y === currentYear) opt.selected = true;
+    yearSel.appendChild(opt);
+  }
 
-  // 날짜 변경 핸들러
-  datePickerInput.onchange = () => {
-    const selectedDate = datePickerInput.value;
-    if (!selectedDate) return;
-    const [y, m, d] = selectedDate.split('-');
-    currentYear = parseInt(y);
-    currentMonth = parseInt(m);
-    loadCalendar().then(() => selectDate(selectedDate));
+  // 월: 1~12
+  monthSel.innerHTML = '';
+  for (let m = 1; m <= 12; m++) {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = `${m}월`;
+    if (m === currentMonth) opt.selected = true;
+    monthSel.appendChild(opt);
+  }
+
+  const onChange = () => {
+    currentYear = parseInt(yearSel.value);
+    currentMonth = parseInt(monthSel.value);
+    loadCalendar();
   };
+  yearSel.onchange = onChange;
+  monthSel.onchange = onChange;
+}
+
+/* ── 캘린더 헤더 변경 시 드롭다운도 동기화 ── */
+function syncSelectors() {
+  const yearSel = document.getElementById('yearSelector');
+  const monthSel = document.getElementById('monthSelector');
+  if (yearSel) yearSel.value = currentYear;
+  if (monthSel) monthSel.value = currentMonth;
 }
 
 /* ── 날짜별 그룹 목록 ── */
